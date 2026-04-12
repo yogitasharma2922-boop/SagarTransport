@@ -77,7 +77,8 @@ async function callApi(path, options = {}) {
   const res = await fetch(path, options);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    const detail = err.detail ? ` (${err.detail})` : "";
+    throw new Error((err.error || `HTTP ${res.status}`) + detail);
   }
   return res.json();
 }
@@ -184,6 +185,37 @@ function refreshSaveState() {
   clearBtn.disabled = !capturedBlob;
 }
 
+function resizeImageBlob(blob, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const targetW = Math.round(img.width * scale);
+      const targetH = Math.round(img.height * scale);
+      const off = document.createElement("canvas");
+      off.width = targetW;
+      off.height = targetH;
+      const ctx = off.getContext("2d");
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      off.toBlob(
+        (out) => {
+          if (!out) return reject(new Error("Failed to resize image"));
+          resolve(out);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image for resize"));
+    };
+    img.src = url;
+  });
+}
+
 function toggleButtons(disable) {
   [captureBtn, saveBtn, loadBtn, clearBtn, switchCameraBtn].forEach((btn) => {
     btn.disabled = disable || (btn === saveBtn && !(capturedBlob && nameInput.value.trim()));
@@ -234,11 +266,20 @@ saveBtn.addEventListener("click", async () => {
     return;
   }
 
+  let uploadBlob = capturedBlob;
+  try {
+    const maxDim = size === "small" ? 1280 : 1920;
+    const quality = size === "small" ? 0.7 : 0.85;
+    uploadBlob = await resizeImageBlob(capturedBlob, maxDim, quality);
+  } catch (err) {
+    console.warn("Resize failed, using original image.", err);
+  }
+
   const form = new FormData();
   form.append("name", name);
   form.append("siteName", siteName);
   form.append("vehicleSize", size);
-  form.append("photo", capturedBlob, "capture.jpg");
+  form.append("photo", uploadBlob, "capture.jpg");
 
   setStatus("Saving...", "info", true);
   toggleButtons(true);
@@ -253,7 +294,7 @@ saveBtn.addEventListener("click", async () => {
     await loadNames();
     await loadPhotos(name);
   } catch (err) {
-    setStatus(err.message || "Save failed.", "error");
+    setStatus(err.message || "Save failed.", "error", true);
   } finally {
     toggleButtons(false);
   }

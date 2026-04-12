@@ -603,6 +603,11 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
 
     res.json({ ok: true, name, filename });
   } catch (err) {
+    console.error("Upload failed:", err);
+    const detail = process.env.DEBUG_ERRORS === "1" ? String(err && err.message ? err.message : err) : undefined;
+    if (detail) {
+      return res.status(500).json({ error: "Failed to save photo", detail });
+    }
     res.status(500).json({ error: "Failed to save photo" });
   }
 });
