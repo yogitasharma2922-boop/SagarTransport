@@ -1,0 +1,81 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sagar Transport</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>Sagar Transport</h1>
+       
+      </header>
+
+      <section class="auth" id="authSection">
+        <h2>Login</h2>
+        <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Username" /></label></div>
+        <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Password" /></label></div>
+        <button id="loginBtn">Login</button>
+        <button id="signupBtn">Sign Up </button>
+        <p id="loginStatus" class="status"></p>
+      </section>
+
+      <section class="controls hidden" id="userSection" aria-live="polite">
+        <div class="top-bar">
+          <span id="userLabel"></span>
+          <button id="logoutBtn">Logout</button>
+        </div>
+        <label class="field" for="nameInput"><span>Driver/Owner Name</span><input id="nameInput" list="nameList" placeholder="e.g., Yukta" aria-label="Driver or owner name" required /><datalist id="nameList"></datalist></label>
+        <label class="field" for="siteInput"><span>Site Name</span><input id="siteInput" placeholder="e.g., Depot A" aria-label="Site name" required /></label>
+        <label class="field" for="vehicleSize"><span>Vehicle Size</span>
+          <select id="vehicleSize" aria-label="Vehicle size" required>
+            <option value="small">Small</option>
+            <option value="big">Big</option>
+          </select>
+        </label>
+        <label class="field" for="photoDateFilter"><span>Filter by Date</span><input type="date" id="photoDateFilter" /></label>
+
+        <div class="camera">
+          <div class="video-group"><strong>Live Camera</strong><video id="video" autoplay playsinline></video></div>
+          <div class="preview-group"><strong>Photo Preview</strong><canvas id="canvas" class="hidden"></canvas><img id="preview" alt="Captured photo preview" /></div>
+        </div>
+
+        <div class="buttons">
+          <button id="captureBtn">Capture Photo</button>
+          <button id="switchCameraBtn" type="button">Use Front Camera</button>
+          <button id="saveBtn" disabled>Save</button>
+          <button id="clearBtn" disabled>Reset</button>
+          <button id="loadBtn" type="button">Show Previous</button>
+        </div>
+
+        <div id="status" class="status">Initializing camera...</div>
+      </section>
+
+      <section class="admin hidden" id="adminSection">
+        <div class="top-bar">
+          <span id="adminLabel"></span>
+          <button id="adminLogoutBtn">Logout</button>
+        </div>
+        <h2>Admin Dashboard</h2>
+        <div class="field"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
+        <div class="field"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
+        <button id="refreshAdmin">Refresh folders</button>
+
+        <div class="panel" id="folderList"></div>
+        <div id="adminPhotoSummary" class="summary"></div>
+        <div class="panel" id="adminPhotoList"></div>
+        <h3>Activity log</h3>
+        <pre id="activityLog" class="log"></pre>
+      </section>
+
+      <section class="gallery">
+        <h2>Previous Photos</h2>
+        <div id="photoSummary" class="summary"></div>
+        <div id="photoGrid" class="grid"></div>
+      </section>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
