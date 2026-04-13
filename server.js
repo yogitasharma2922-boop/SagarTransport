@@ -7,6 +7,12 @@ const bcrypt = require("bcryptjs");
 const { google } = require("googleapis");
 const { Readable } = require("stream");
 const { Pool } = require("pg");
+let sharp = null;
+try {
+  sharp = require("sharp");
+} catch {
+  sharp = null;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +20,10 @@ const SECRET = process.env.JWT_SECRET || "change_this_secret_for_production";
 
 const LOCAL_MODE = process.env.LOCAL_MODE === "1";
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || "";
+const USE_OAUTH = process.env.USE_OAUTH === "1";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const USE_DB = !LOCAL_MODE && Boolean(DATABASE_URL);
 
@@ -191,21 +201,29 @@ function loadServiceAccount() {
 
 if (!LOCAL_MODE) {
   try {
-    const serviceAccount = loadServiceAccount();
-    if (!serviceAccount) {
-      throw new Error("Missing Google service account JSON");
-    }
     if (!DRIVE_ROOT_FOLDER_ID) {
       throw new Error("Missing DRIVE_ROOT_FOLDER_ID");
     }
-    const auth = new google.auth.JWT(
-      serviceAccount.client_email,
-      null,
-      serviceAccount.private_key,
-      ["https://www.googleapis.com/auth/drive"]
-    );
-    driveReady = true;
-console.log("Drive initialized OK. Root folder:", DRIVE_ROOT_FOLDER_ID);
+    let auth = null;
+    const serviceAccount = loadServiceAccount();
+
+    if (USE_OAUTH || (!serviceAccount && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN)) {
+      const oauth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+      oauth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+      auth = oauth;
+      console.log("Drive initialized with OAuth. Root folder:", DRIVE_ROOT_FOLDER_ID);
+    } else if (serviceAccount) {
+      auth = new google.auth.JWT(
+        serviceAccount.client_email,
+        null,
+        serviceAccount.private_key,
+        ["https://www.googleapis.com/auth/drive"]
+      );
+      console.log("Drive initialized with service account. Root folder:", DRIVE_ROOT_FOLDER_ID);
+    } else {
+      throw new Error("Missing Google Drive credentials");
+    }
+
     drive = google.drive({ version: "v3", auth });
     driveReady = true;
   } catch (err) {
@@ -281,7 +299,7 @@ async function listPhotosByName(name) {
     );
     return result.rows.map((row) => ({
       filename: row.filename,
-      url: row.driveFileId ? `/api/photo/${row.driveFileId}` : row.url,
+      url: row.url || (row.driveFileId ? `/api/photo/${row.driveFileId}` : ""),
       vehicleSize: row.vehicleSize || "",
       siteName: row.siteName || ""
     }));
@@ -290,7 +308,7 @@ async function listPhotosByName(name) {
   const all = await readJson(localFiles.photos, []);
   all.forEach((p) => {
     if (p.name === name) {
-      const url = p.driveFileId ? `/api/photo/${p.driveFileId}` : p.url;
+      const url = p.url || (p.driveFileId ? `/api/photo/${p.driveFileId}` : "");
       photos.push({
         filename: p.filename,
         url,
@@ -446,6 +464,17 @@ function timestampForFilename(date = new Date()) {
   return `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
 }
 
+async function compressImageBuffer(buffer, vehicleSize) {
+  if (!sharp) return buffer;
+  const maxDim = vehicleSize === "small" ? 1280 : 1920;
+  const quality = vehicleSize === "small" ? 70 : 80;
+  return sharp(buffer)
+    .rotate()
+    .resize({ width: maxDim, height: maxDim, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality })
+    .toBuffer();
+}
+
 app.post("/api/signup", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Missing credentials" });
@@ -524,7 +553,9 @@ async function ensureDriveFolder(folderName) {
   const list = await drive.files.list({
     q,
     fields: "files(id,name)",
-    spaces: "drive"
+    spaces: "drive",
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true
   });
   if (list.data.files && list.data.files.length > 0) {
     return list.data.files[0].id;
@@ -536,6 +567,8 @@ async function ensureDriveFolder(folderName) {
       parents: [DRIVE_ROOT_FOLDER_ID]
     },
     fields: "id"
+    ,
+    supportsAllDrives: true
   });
   return created.data.id;
 }
@@ -557,18 +590,24 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
     const filename = `${name}_${timestampForFilename()}.jpg`;
     let url = "";
     let driveFileId = "";
+    let uploadBuffer = req.file.buffer;
+    try {
+      uploadBuffer = await compressImageBuffer(uploadBuffer, vehicleSize);
+    } catch (err) {
+      console.warn("Server-side compression failed, using original buffer.", err.message || err);
+    }
 
     if (USE_LOCAL) {
       const targetDir = path.join(dataDir, name);
       await fs.promises.mkdir(targetDir, { recursive: true });
       const targetPath = path.join(targetDir, filename);
-      await fs.promises.writeFile(targetPath, req.file.buffer);
+      await fs.promises.writeFile(targetPath, uploadBuffer);
       url = `/data/${name}/${filename}`;
     } else {
       const folderId = await ensureDriveFolder(name);
       const media = {
         mimeType: "image/jpeg",
-        body: Readable.from(req.file.buffer)
+        body: Readable.from(uploadBuffer)
       };
       const created = await drive.files.create({
         requestBody: {
@@ -576,10 +615,21 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
           parents: [folderId]
         },
         media,
-        fields: "id"
+        fields: "id",
+        supportsAllDrives: true
       });
       driveFileId = created.data.id;
-      url = `/api/photo/${driveFileId}`;
+      try {
+        await drive.permissions.create({
+          fileId: driveFileId,
+          requestBody: { role: "reader", type: "anyone" },
+          supportsAllDrives: true
+        });
+        url = `https://drive.google.com/uc?id=${driveFileId}`;
+      } catch (permErr) {
+        console.warn("Failed to set public permission, falling back to API route.", permErr.message || permErr);
+        url = `/api/photo/${driveFileId}`;
+      }
     }
 
     const now = new Date();
@@ -620,13 +670,13 @@ app.get("/api/photo/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Not available in LOCAL_MODE" });
     }
     const fileId = req.params.id;
-    const meta = await drive.files.get({ fileId, fields: "mimeType,name" });
+    const meta = await drive.files.get({ fileId, fields: "mimeType,name", supportsAllDrives: true });
     const mimeType = meta.data.mimeType || "application/octet-stream";
     const name = meta.data.name || "photo";
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
     const driveRes = await drive.files.get(
-      { fileId, alt: "media" },
+      { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "stream" }
     );
     driveRes.data.on("error", () => {
