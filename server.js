@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -204,6 +204,8 @@ if (!LOCAL_MODE) {
       serviceAccount.private_key,
       ["https://www.googleapis.com/auth/drive"]
     );
+    driveReady = true;
+console.log("Drive initialized OK. Root folder:", DRIVE_ROOT_FOLDER_ID);
     drive = google.drive({ version: "v3", auth });
     driveReady = true;
   } catch (err) {
@@ -603,12 +605,12 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
 
     res.json({ ok: true, name, filename });
   } catch (err) {
-    console.error("Upload failed:", err);
-    const detail = process.env.DEBUG_ERRORS === "1" ? String(err && err.message ? err.message : err) : undefined;
-    if (detail) {
-      return res.status(500).json({ error: "Failed to save photo", detail });
+    console.error("UPLOAD ERROR:", err.message);
+    console.error("UPLOAD ERROR STACK:", err.stack);
+    if (err.response) {
+      console.error("DRIVE API ERROR:", JSON.stringify(err.response.data));
     }
-    res.status(500).json({ error: "Failed to save photo" });
+    res.status(500).json({ error: err.message || "Failed to save photo" });
   }
 });
 
