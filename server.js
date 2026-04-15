@@ -4,8 +4,6 @@ const path = require("path");
 const fs = require("fs");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { google } = require("googleapis");
-const { Readable } = require("stream");
 const { Pool } = require("pg");
 const { uploadToR2, deleteFromR2, USE_CLOUDFLARE_R2 } = require("./cloudflareR2");
 let sharp = null;
@@ -20,11 +18,6 @@ const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || "change_this_secret_for_production";
 
 const LOCAL_MODE = process.env.LOCAL_MODE === "1";
-const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || "";
-const USE_OAUTH = process.env.USE_OAUTH === "1";
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
-const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const USE_DB = !LOCAL_MODE && Boolean(DATABASE_URL);
 
@@ -179,61 +172,14 @@ async function importJsonToDbIfEmpty() {
   }
 }
 
-// Initialize Google Drive (optional)
-let drive = null;
-let driveReady = false;
-
-function loadServiceAccount() {
-  const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (jsonEnv) {
-    return JSON.parse(jsonEnv);
-  }
-  const jsonPathEnv = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
-  if (jsonPathEnv && fileExists(jsonPathEnv)) {
-    const raw = fs.readFileSync(jsonPathEnv, "utf8");
-    return JSON.parse(raw);
-  }
-  const defaultPath = path.join(__dirname, "google-service-account.json");
-  if (fileExists(defaultPath)) {
-    const raw = fs.readFileSync(defaultPath, "utf8");
-    return JSON.parse(raw);
-  }
-  return null;
+// Storage Configuration
+if (USE_CLOUDFLARE_R2) {
+  console.log("Using Cloudflare R2 for image storage");
+} else if (LOCAL_MODE) {
+  console.log("Using local file storage");
+} else {
+  console.error("ERROR: Cloudflare R2 not configured and LOCAL_MODE is off. Images cannot be stored.");
 }
-
-if (!LOCAL_MODE) {
-  try {
-    if (!DRIVE_ROOT_FOLDER_ID) {
-      throw new Error("Missing DRIVE_ROOT_FOLDER_ID");
-    }
-    let auth = null;
-    const serviceAccount = loadServiceAccount();
-
-    if (USE_OAUTH || (!serviceAccount && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN)) {
-      const oauth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
-      oauth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
-      auth = oauth;
-      console.log("Drive initialized with OAuth. Root folder:", DRIVE_ROOT_FOLDER_ID);
-    } else if (serviceAccount) {
-      auth = new google.auth.JWT(
-        serviceAccount.client_email,
-        null,
-        serviceAccount.private_key,
-        ["https://www.googleapis.com/auth/drive"]
-      );
-      console.log("Drive initialized with service account. Root folder:", DRIVE_ROOT_FOLDER_ID);
-    } else {
-      throw new Error("Missing Google Drive credentials");
-    }
-
-    drive = google.drive({ version: "v3", auth });
-    driveReady = true;
-  } catch (err) {
-    console.error("Drive init failed; falling back to LOCAL_MODE.", err.message);
-  }
-}
-
-const USE_LOCAL = LOCAL_MODE || !driveReady;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -296,12 +242,12 @@ async function listNames() {
 async function listPhotosByName(name) {
   if (USE_DB) {
     const result = await pool.query(
-      "SELECT filename, url, vehicle_size AS \"vehicleSize\", site_name AS \"siteName\", drive_file_id AS \"driveFileId\", cloudflare_url AS \"cloudflareUrl\" FROM photos WHERE name = $1 ORDER BY filename DESC;",
+      "SELECT filename, url, vehicle_size AS \"vehicleSize\", site_name AS \"siteName\", cloudflare_url AS \"cloudflareUrl\" FROM photos WHERE name = $1 ORDER BY filename DESC;",
       [name]
     );
     return result.rows.map((row) => ({
       filename: row.filename,
-      url: row.cloudflareUrl || row.url || (row.driveFileId ? `/api/photo/${row.driveFileId}` : ""),
+      url: row.cloudflareUrl || row.url,
       vehicleSize: row.vehicleSize || "",
       siteName: row.siteName || ""
     }));
@@ -310,10 +256,9 @@ async function listPhotosByName(name) {
   const all = await readJson(localFiles.photos, []);
   all.forEach((p) => {
     if (p.name === name) {
-      const url = p.url || (p.driveFileId ? `/api/photo/${p.driveFileId}` : "");
       photos.push({
         filename: p.filename,
-        url,
+        url: p.url,
         vehicleSize: p.vehicleSize || "",
         siteName: p.siteName || ""
       });
@@ -326,7 +271,7 @@ async function listPhotosByName(name) {
 async function savePhotoMetadata(entry) {
   if (USE_DB) {
     await pool.query(
-      "INSERT INTO photos (name, site_name, filename, url, vehicle_size, uploaded_by, timestamp, drive_file_id, cloudflare_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);",
+      "INSERT INTO photos (name, site_name, filename, url, vehicle_size, uploaded_by, timestamp, cloudflare_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8);",
       [
         entry.name,
         entry.siteName,
@@ -335,7 +280,6 @@ async function savePhotoMetadata(entry) {
         entry.vehicleSize,
         entry.uploadedBy,
         entry.timestamp,
-        entry.driveFileId || null,
         entry.cloudflareUrl || null
       ]
     );
@@ -394,19 +338,6 @@ async function listActivity() {
     }));
 }
 
-async function getPhotoDriveFileId(name, filename) {
-  if (USE_DB) {
-    const result = await pool.query(
-      "SELECT drive_file_id FROM photos WHERE name = $1 AND filename = $2 LIMIT 1;",
-      [name, filename]
-    );
-    return result.rows[0] ? result.rows[0].drive_file_id : null;
-  }
-  const photos = await readJson(localFiles.photos, []);
-  const target = photos.find((p) => p.name === name && p.filename === filename);
-  return target ? target.driveFileId : null;
-}
-
 async function getPhotoCloudflareUrl(name, filename) {
   if (USE_DB) {
     const result = await pool.query(
@@ -415,7 +346,6 @@ async function getPhotoCloudflareUrl(name, filename) {
     );
     return result.rows[0] ? result.rows[0].cloudflare_url : null;
   }
-  // Local mode doesn't store Cloudflare URLs
   return null;
 }
 
@@ -553,41 +483,6 @@ app.get("/api/admin/folders", authMiddleware, adminMiddleware, async (req, res) 
   }
 });
 
-function escapeDriveQueryString(input) {
-  return String(input || "").replace(/'/g, "\\'");
-}
-
-async function ensureDriveFolder(folderName) {
-  const escaped = escapeDriveQueryString(folderName);
-  const q = [
-    `'${DRIVE_ROOT_FOLDER_ID}' in parents`,
-    "trashed = false",
-    "mimeType = 'application/vnd.google-apps.folder'",
-    `name = '${escaped}'`
-  ].join(" and ");
-  const list = await drive.files.list({
-    q,
-    fields: "files(id,name)",
-    spaces: "drive",
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true
-  });
-  if (list.data.files && list.data.files.length > 0) {
-    return list.data.files[0].id;
-  }
-  const created = await drive.files.create({
-    requestBody: {
-      name: folderName,
-      mimeType: "application/vnd.google-apps.folder",
-      parents: [DRIVE_ROOT_FOLDER_ID]
-    },
-    fields: "id"
-    ,
-    supportsAllDrives: true
-  });
-  return created.data.id;
-}
-
 app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res) => {
   try {
     const nameRaw = req.body.name || "";
@@ -604,65 +499,30 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
 
     const filename = `${name}_${timestampForFilename()}.jpg`;
     let url = "";
-    let driveFileId = "";
     let cloudflareUrl = "";
     let uploadBuffer = req.file.buffer;
+    
     try {
       uploadBuffer = await compressImageBuffer(uploadBuffer, vehicleSize);
     } catch (err) {
       console.warn("Server-side compression failed, using original buffer.", err.message || err);
     }
 
-    // Upload to Cloudflare R2 if configured
-    if (USE_CLOUDFLARE_R2) {
-      const r2Key = `${name}/${filename}`;
-      const r2Result = await uploadToR2(uploadBuffer, r2Key, "image/jpeg");
-      if (r2Result.success) {
-        cloudflareUrl = r2Result.url;
-        url = cloudflareUrl; // Prefer Cloudflare URL
-        console.log(`Uploaded to Cloudflare R2: ${r2Key}`);
-      } else {
-        console.warn("Cloudflare R2 upload failed:", r2Result.error);
-      }
+    // Upload to Cloudflare R2
+    if (!USE_CLOUDFLARE_R2) {
+      return res.status(500).json({ error: "Cloudflare R2 not configured" });
     }
 
-    // Fallback to local storage or Google Drive if Cloudflare failed or not configured
-    if (!cloudflareUrl) {
-      if (USE_LOCAL) {
-        const targetDir = path.join(dataDir, name);
-        await fs.promises.mkdir(targetDir, { recursive: true });
-        const targetPath = path.join(targetDir, filename);
-        await fs.promises.writeFile(targetPath, uploadBuffer);
-        url = `/data/${name}/${filename}`;
-      } else {
-        const folderId = await ensureDriveFolder(name);
-        const media = {
-          mimeType: "image/jpeg",
-          body: Readable.from(uploadBuffer)
-        };
-        const created = await drive.files.create({
-          requestBody: {
-            name: filename,
-            parents: [folderId]
-          },
-          media,
-          fields: "id",
-          supportsAllDrives: true
-        });
-        driveFileId = created.data.id;
-        try {
-          await drive.permissions.create({
-            fileId: driveFileId,
-            requestBody: { role: "reader", type: "anyone" },
-            supportsAllDrives: true
-          });
-          url = `https://drive.google.com/uc?id=${driveFileId}`;
-        } catch (permErr) {
-          console.warn("Failed to set public permission, falling back to API route.", permErr.message || permErr);
-          url = `/api/photo/${driveFileId}`;
-        }
-      }
+    const r2Key = `${name}/${filename}`;
+    const r2Result = await uploadToR2(uploadBuffer, r2Key, "image/jpeg");
+    if (!r2Result.success) {
+      console.error("Cloudflare R2 upload failed:", r2Result.error);
+      return res.status(500).json({ error: "Failed to upload image to storage" });
     }
+
+    cloudflareUrl = r2Result.url;
+    url = cloudflareUrl;
+    console.log(`Uploaded to Cloudflare R2: ${r2Key}`);
 
     const now = new Date();
     await savePhotoMetadata({
@@ -673,7 +533,6 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
       vehicleSize,
       uploadedBy: req.user.username,
       timestamp: now,
-      driveFileId,
       cloudflareUrl
     });
 
@@ -690,35 +549,12 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
   } catch (err) {
     console.error("UPLOAD ERROR:", err.message);
     console.error("UPLOAD ERROR STACK:", err.stack);
-    if (err.response) {
-      console.error("DRIVE API ERROR:", JSON.stringify(err.response.data));
-    }
     res.status(500).json({ error: err.message || "Failed to save photo" });
   }
 });
 
 app.get("/api/photo/:id", authMiddleware, async (req, res) => {
-  try {
-    if (USE_LOCAL) {
-      return res.status(404).json({ error: "Not available in LOCAL_MODE" });
-    }
-    const fileId = req.params.id;
-    const meta = await drive.files.get({ fileId, fields: "mimeType,name", supportsAllDrives: true });
-    const mimeType = meta.data.mimeType || "application/octet-stream";
-    const name = meta.data.name || "photo";
-    res.setHeader("Content-Type", mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${name}"`);
-    const driveRes = await drive.files.get(
-      { fileId, alt: "media", supportsAllDrives: true },
-      { responseType: "stream" }
-    );
-    driveRes.data.on("error", () => {
-      res.status(500).end();
-    });
-    driveRes.data.pipe(res);
-  } catch (err) {
-    res.status(404).json({ error: "Photo not found" });
-  }
+  res.status(404).json({ error: "Photo endpoint not available. All images use Cloudflare R2." });
 });
 
 app.delete("/api/admin/photo", authMiddleware, adminMiddleware, async (req, res) => {
@@ -726,36 +562,25 @@ app.delete("/api/admin/photo", authMiddleware, adminMiddleware, async (req, res)
   if (!name || !filename) return res.status(400).json({ error: "Missing name/filename" });
 
   try {
-    const driveFileId = await getPhotoDriveFileId(name, filename);
     const cloudflareUrl = await getPhotoCloudflareUrl(name, filename);
 
-    // Delete from Cloudflare R2 if it exists there
+    // Delete from Cloudflare R2
     if (cloudflareUrl && USE_CLOUDFLARE_R2) {
       const r2Key = `${name}/${filename}`;
       const deleteResult = await deleteFromR2(r2Key);
       if (deleteResult.success) {
         console.log(`Deleted from Cloudflare R2: ${r2Key}`);
       } else {
-        console.warn("Cloudflare R2 delete failed:", deleteResult.error);
+        console.warn("Cloudflare R2 delete warning:", deleteResult.error);
+        // Continue with metadata deletion even if R2 delete fails
       }
     }
 
-    // Fallback delete from local or Google Drive
-    if (!cloudflareUrl) {
-      if (USE_LOCAL) {
-        const targetPath = path.join(dataDir, name, filename);
-        if (fileExists(targetPath)) {
-          await fs.promises.unlink(targetPath);
-        }
-      } else if (driveFileId) {
-        await drive.files.delete({ fileId: driveFileId });
-      }
-    }
-
+    // Delete metadata from database
     await deletePhotoMetadata(name, filename);
-
     res.json({ ok: true });
   } catch (err) {
+    console.error("Delete error:", err.message);
     res.status(500).json({ error: "Delete failed" });
   }
 });
@@ -789,7 +614,7 @@ async function bootstrap() {
 bootstrap().catch(console.error);
 
 app.listen(PORT, () => {
-  const mode = USE_LOCAL ? "LOCAL_MODE" : "DRIVE_MODE";
+  const storage = "CLOUDFLARE_R2";
   const meta = USE_DB ? "POSTGRES" : "JSON";
-  console.log(`Server running on http://localhost:${PORT} (${mode}, ${meta})`);
+  console.log(`Server running on http://localhost:${PORT} (${storage}, ${meta})`);
 });
