@@ -4,293 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sagar Transport</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      /* Ensure photo-card images always show — overrides style.css global img rule */
-      .photo-card img { display: block !important; width: 100% !important; aspect-ratio: 4/3 !important; object-fit: cover !important; border-radius: 0 !important; }
 
       :root {
-        --brand: #1A3C5E;
-        --brand-mid: #2563A8;
+        --brand:       #1A3C5E;
+        --brand-mid:   #2563A8;
         --brand-light: #EBF3FC;
-        --accent: #E05A2B;
-        --accent-light: #FDF0EB;
-        --surface: #F7F8FA;
-        --card: #FFFFFF;
-        --border: #DDE3EC;
-        --border-strong: #B8C4D6;
-        --text-primary: #0F1C2E;
-        --text-secondary: #4A5668;
-        --text-muted: #8A95A6;
-        --success: #1A7A4A;
-        --success-bg: #EAF7F0;
-        --danger: #C0392B;
-        --danger-bg: #FCEAEA;
-        --warn: #9A5F00;
-        --warn-bg: #FFF5E0;
-        --radius: 10px;
-        --radius-lg: 16px;
-        --shadow: 0 2px 12px rgba(26,60,94,0.08);
-        --shadow-lg: 0 8px 32px rgba(26,60,94,0.13);
-        --font: 'Sora', sans-serif;
-        --mono: 'JetBrains Mono', monospace;
-        --transition: 0.18s ease;
+        --surface:     #F4F7FA;
+        --card:        #FFFFFF;
+        --border:      #DDE3EC;
+        --text:        #0F1C2E;
+        --text2:       #4A5668;
+        --muted:       #8A95A6;
+        --success:     #1A7A4A;
+        --success-bg:  #EAF7F0;
+        --danger:      #C0392B;
+        --danger-bg:   #FCEAEA;
+        --r:           10px;
+        --r-lg:        16px;
+        --sh:          0 2px 12px rgba(26,60,94,0.08);
+        --sh-lg:       0 6px 24px rgba(26,60,94,0.14);
+        --font:        'Sora', sans-serif;
+        --mono:        'JetBrains Mono', monospace;
       }
 
       body {
         font-family: var(--font);
         background: var(--surface);
-        color: var(--text-primary);
+        color: var(--text);
         min-height: 100vh;
         line-height: 1.6;
       }
 
-      /* ── APP SHELL ── */
-      .app {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 0 0 60px;
-      }
+      .app { max-width: 620px; margin: 0 auto; padding-bottom: 60px; }
 
       /* ── HEADER ── */
       header {
         background: var(--brand);
-        padding: 20px 24px 18px;
+        padding: 16px 20px;
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
         position: sticky;
         top: 0;
         z-index: 100;
-        box-shadow: 0 2px 16px rgba(26,60,94,0.2);
+        box-shadow: 0 2px 16px rgba(26,60,94,0.25);
       }
-
       header::before {
         content: '';
-        width: 36px;
-        height: 36px;
-        background: var(--accent);
-        border-radius: 8px;
-        display: block;
+        width: 34px; height: 34px;
         flex-shrink: 0;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'/%3E%3C/svg%3E");
-        background-size: 22px;
-        background-repeat: no-repeat;
-        background-position: center;
+        border-radius: 8px;
+        background: #E05A2B url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zm-5 9.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 17.5c-.83 0-1.5-.67-1.5-1.5S4.17 14.5 5 14.5s1.5.67 1.5 1.5S5.83 17.5 5 17.5zM17 12H3V6h14v6z'/%3E%3C/svg%3E") center/20px no-repeat;
       }
+      header h1 { font-size: 19px; font-weight: 600; color: #fff; letter-spacing: -0.2px; }
 
-      header h1 {
-        font-size: 20px;
-        font-weight: 600;
-        color: #fff;
-        letter-spacing: -0.3px;
-      }
-
-      /* ── SECTIONS ── */
-      section {
-        margin: 20px 16px 0;
+      /* ── SECTION CARDS ── */
+      .auth, .controls, .admin {
+        margin: 16px;
         background: var(--card);
-        border-radius: var(--radius-lg);
+        border-radius: var(--r-lg);
         border: 1px solid var(--border);
-        box-shadow: var(--shadow);
+        box-shadow: var(--sh);
         overflow: hidden;
-      }
-
-      section.gallery {
-        background: transparent;
-        border: none;
-        box-shadow: none;
-        overflow: visible;
-      }
-
-      section h2 {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary);
-        padding: 20px 20px 0;
-        letter-spacing: -0.2px;
-      }
-
-      section h3 {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        margin-bottom: 12px;
-      }
-
-      /* ── AUTH ── */
-      .auth {
-        padding: 24px 20px 20px;
-      }
-
-      .auth h2 {
-        font-size: 22px;
-        font-weight: 600;
-        padding: 0 0 6px;
-        color: var(--brand);
-      }
-
-      .muted-note {
-        font-size: 13px;
-        color: var(--text-muted);
-        margin-bottom: 16px;
-      }
-
-      /* ── FIELDS ── */
-      .field {
-        margin-bottom: 14px;
-      }
-
-      .field label, label.field {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-secondary);
-      }
-
-      .field span, label.field > span {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-secondary);
-      }
-
-      input[type="text"],
-      input[type="password"],
-      input[type="date"],
-      input[list] {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius);
-        font-family: var(--font);
-        font-size: 14px;
-        color: var(--text-primary);
-        background: var(--surface);
-        outline: none;
-        transition: border-color var(--transition), box-shadow var(--transition);
-        -webkit-appearance: none;
-      }
-
-      input:focus {
-        border-color: var(--brand-mid);
-        box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
-        background: #fff;
-      }
-
-      select {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1.5px solid var(--border);
-        border-radius: var(--radius);
-        font-family: var(--font);
-        font-size: 14px;
-        color: var(--text-primary);
-        background: var(--surface);
-        outline: none;
-        cursor: pointer;
-        transition: border-color var(--transition);
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5668' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        padding-right: 36px;
-      }
-
-      select:focus {
-        border-color: var(--brand-mid);
-        box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
-      }
-
-      /* ── BUTTONS ── */
-      button {
-        font-family: var(--font);
-        font-size: 14px;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        border-radius: var(--radius);
-        padding: 11px 18px;
-        transition: all var(--transition);
-        line-height: 1;
-      }
-
-      /* Primary */
-      #loginBtn, #signupBtn, #saveBtn, #captureBtn, #generateSignupCodeBtn, #refreshAdmin {
-        background: var(--brand);
-        color: #fff;
-        width: 100%;
-        padding: 13px;
-        font-size: 15px;
-        font-weight: 600;
-        border-radius: var(--radius);
-        letter-spacing: -0.1px;
-      }
-
-      #loginBtn:hover, #signupBtn:hover, #saveBtn:hover, #captureBtn:hover,
-      #generateSignupCodeBtn:hover, #refreshAdmin:hover {
-        background: var(--brand-mid);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(26,60,94,0.22);
-      }
-
-      #loginBtn:active, #signupBtn:active, #saveBtn:active, #captureBtn:active {
-        transform: translateY(0);
-      }
-
-      #saveBtn:disabled {
-        background: var(--border);
-        color: var(--text-muted);
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-      }
-
-      /* Secondary */
-      #showSignupBtn, #switchCameraBtn, #loadBtn {
-        background: var(--brand-light);
-        color: var(--brand);
-        border: 1.5px solid rgba(37,99,168,0.2);
-        width: 100%;
-        padding: 11px;
-        margin-top: 8px;
-      }
-
-      #showSignupBtn:hover, #switchCameraBtn:hover, #loadBtn:hover {
-        background: #D8E9F8;
-        border-color: var(--brand-mid);
-      }
-
-      /* Danger/clear */
-      #clearBtn {
-        background: var(--danger-bg);
-        color: var(--danger);
-        border: 1.5px solid rgba(192,57,43,0.2);
-        padding: 11px;
-      }
-
-      #clearBtn:hover { background: #F5D5D5; }
-      #clearBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-      /* Logout */
-      #logoutBtn, #adminLogoutBtn {
-        background: transparent;
-        color: var(--text-muted);
-        border: 1.5px solid var(--border);
-        font-size: 13px;
-        padding: 7px 14px;
-      }
-
-      #logoutBtn:hover, #adminLogoutBtn:hover {
-        background: var(--danger-bg);
-        color: var(--danger);
-        border-color: rgba(192,57,43,0.3);
       }
 
       /* ── TOP BAR ── */
@@ -298,307 +76,237 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 20px;
+        padding: 12px 18px;
         background: var(--brand-light);
         border-bottom: 1px solid var(--border);
       }
-
       #userLabel, #adminLabel {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--brand);
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        font-size: 14px; font-weight: 600; color: var(--brand);
+        display: flex; align-items: center; gap: 8px;
       }
-
       #userLabel::before, #adminLabel::before {
         content: '';
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: var(--brand);
-        display: block;
-        flex-shrink: 0;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z'/%3E%3C/svg%3E");
-        background-size: 16px;
-        background-repeat: no-repeat;
-        background-position: center;
+        width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+        background: var(--brand) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z'/%3E%3C/svg%3E") center/14px no-repeat;
       }
 
-      /* ── CONTROLS SECTION ── */
-      .controls {
-        padding: 0;
+      /* ── AUTH ── */
+      .auth { padding: 22px 18px 20px; }
+      .auth h2 { font-size: 22px; font-weight: 600; color: var(--brand); margin-bottom: 4px; }
+      .muted-note { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+      /* ── FIELDS ── */
+      .field { margin-bottom: 12px; }
+      .field label, label.field {
+        display: flex; flex-direction: column; gap: 4px;
+        font-size: 13px; font-weight: 500; color: var(--text2);
       }
+      label.field { padding: 0 18px; margin-bottom: 12px; }
+      label.field:first-of-type { margin-top: 16px; }
+      label.field > span { font-size: 13px; font-weight: 500; color: var(--text2); }
 
-      .controls > label.field,
-      .controls > .field {
-        padding: 0 20px;
-        margin-bottom: 14px;
+      input[type="text"],
+      input[type="password"],
+      input[type="date"],
+      input[list] {
+        width: 100%; padding: 9px 13px;
+        border: 1.5px solid var(--border); border-radius: var(--r);
+        font-family: var(--font); font-size: 14px;
+        color: var(--text); background: var(--surface);
+        outline: none; transition: border-color 0.15s, box-shadow 0.15s;
       }
-
-      .controls > label.field:first-of-type {
-        margin-top: 18px;
+      input:focus {
+        border-color: var(--brand-mid);
+        box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
+        background: #fff;
       }
-
-      /* ── CAMERA ── */
-      .camera {
-        margin: 16px 20px;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
+      select {
+        width: 100%; padding: 9px 36px 9px 13px;
+        border: 1.5px solid var(--border); border-radius: var(--r);
+        font-family: var(--font); font-size: 14px;
+        color: var(--text);
+        background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5668' d='M6 8L1 3h10z'/%3E%3C/svg%3E") right 12px center no-repeat;
+        outline: none; cursor: pointer; -webkit-appearance: none;
+        transition: border-color 0.15s;
       }
+      select:focus { border-color: var(--brand-mid); box-shadow: 0 0 0 3px rgba(37,99,168,0.12); }
 
-      .video-group, .preview-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+      /* ── BUTTONS ── */
+      button {
+        font-family: var(--font); font-size: 14px; font-weight: 500;
+        border: none; border-radius: var(--r); padding: 10px 16px;
+        cursor: pointer; transition: all 0.15s; line-height: 1;
       }
-
-      .video-group strong, .preview-group strong {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: var(--text-muted);
+      #loginBtn, #signupBtn, #saveBtn, #captureBtn, #generateSignupCodeBtn, #refreshAdmin {
+        background: var(--brand); color: #fff;
+        width: 100%; padding: 12px; font-size: 15px; font-weight: 600;
       }
-
-      #video {
-        width: 100%;
-        aspect-ratio: 4/3;
-        object-fit: cover;
-        border-radius: var(--radius);
-        border: 1.5px solid var(--border);
-        background: #0F1C2E;
+      #loginBtn:hover, #signupBtn:hover, #captureBtn:hover,
+      #generateSignupCodeBtn:hover, #refreshAdmin:hover,
+      #saveBtn:not(:disabled):hover {
+        background: var(--brand-mid); transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(26,60,94,0.2);
       }
+      #saveBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
 
-      #canvas.hidden { display: none; }
-
-      #preview {
-        width: 100%;
-        aspect-ratio: 4/3;
-        object-fit: cover;
-        border-radius: var(--radius);
-        border: 1.5px solid var(--border);
-        background: var(--surface);
+      #showSignupBtn, #switchCameraBtn, #loadBtn {
+        background: var(--brand-light); color: var(--brand);
+        border: 1.5px solid rgba(37,99,168,0.2);
+        width: 100%; margin-top: 8px;
       }
-
-      /* ── PHOTO GRID CARDS (rendered by app.js) ── */
-      .photo-card {
-        display: flex;
-        flex-direction: column;
-        border-radius: var(--radius);
-        overflow: hidden;
-        border: 1px solid var(--border);
-        background: var(--card);
-        box-shadow: var(--shadow);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      #showSignupBtn:hover, #switchCameraBtn:hover, #loadBtn:hover {
+        background: #d6e9f8; border-color: var(--brand-mid);
       }
-
-      .photo-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
+      #clearBtn {
+        background: var(--danger-bg); color: var(--danger);
+        border: 1.5px solid rgba(192,57,43,0.2);
       }
+      #clearBtn:hover { background: #f5d5d5; }
+      #clearBtn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-      .photo-card img {
-        width: 100%;
-        aspect-ratio: 4/3;
-        object-fit: cover;
-        display: block;
-        border-radius: 0;
-        border: none;
-        background: #111;
+      #logoutBtn, #adminLogoutBtn {
+        background: transparent; color: var(--muted);
+        border: 1.5px solid var(--border); font-size: 13px; padding: 6px 14px;
       }
-
-      .photo-meta {
-        font-size: 11px;
-        color: var(--text-muted);
-        padding: 7px 10px;
-        background: var(--surface);
-        line-height: 1.5;
-        font-family: var(--mono);
+      #logoutBtn:hover, #adminLogoutBtn:hover {
+        background: var(--danger-bg); color: var(--danger);
+        border-color: rgba(192,57,43,0.3);
       }
-
-      /* ── BUTTON ROW ── */
-      .buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        padding: 4px 20px 20px;
-      }
-
-      .buttons #captureBtn { grid-column: 1 / -1; }
 
       /* ── STATUS ── */
-      #status, .status {
-        font-size: 13px;
-        padding: 10px 14px;
-        border-radius: var(--radius);
-        margin-top: 8px;
-        font-family: var(--mono);
-        background: var(--brand-light);
-        color: var(--brand);
+      .status {
+        font-size: 13px; font-family: var(--mono);
+        padding: 9px 13px; border-radius: var(--r);
         border: 1px solid rgba(37,99,168,0.15);
+        background: var(--brand-light); color: var(--brand);
+        margin-top: 10px; display: inline-block; min-height: 24px;
       }
+      .status:empty { display: none; }
+      #status { display: block; margin: 0 18px 16px; }
+      .status--success { background: var(--success-bg); color: var(--success); border-color: rgba(26,122,74,0.2); }
+      .status--error   { background: var(--danger-bg);  color: var(--danger);  border-color: rgba(192,57,43,0.2); }
+      .status--warn, .status--warning { background: #fff7ed; color: #9a5f00; border-color: rgba(154,95,0,0.2); }
+      .status--info    { background: var(--brand-light); color: var(--brand); border-color: rgba(37,99,168,0.15); }
 
-      #status { margin: 0 20px 16px; }
-      #loginStatus:empty, .status:empty { display: none; }
-
-      #loginStatus {
-        margin-top: 10px;
-        font-size: 13px;
-        font-family: var(--mono);
-        border-radius: var(--radius);
-        padding: 8px 12px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text-secondary);
+      /* ── PANEL ── */
+      .panel {
+        margin-top: 14px; padding: 14px;
+        background: var(--surface); border-radius: var(--r); border: 1px solid var(--border);
       }
+      .panel h3 {
+        font-size: 12px; font-weight: 600; color: var(--text2);
+        text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;
+      }
+      .panel-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 0; border-bottom: 1px solid var(--border);
+      }
+      .panel-row:last-child { border-bottom: none; }
+      .panel-row button {
+        width: auto; padding: 6px 12px; font-size: 13px;
+        background: var(--brand); color: #fff; margin-top: 0; border: none;
+      }
+      .panel-row button:hover { background: var(--brand-mid); transform: none; box-shadow: none; }
 
       /* ── QR PANEL ── */
       .qr-panel {
-        margin: 0 20px 14px;
-        padding: 16px;
-        border-radius: var(--radius);
-        background: var(--brand-light);
-        border: 1px solid rgba(37,99,168,0.2);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        margin: 0 18px 12px; padding: 16px; border-radius: var(--r);
+        background: var(--brand-light); border: 1px solid rgba(37,99,168,0.2);
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+      }
+      #qrLabel { font-size: 13px; font-weight: 600; color: var(--brand); text-transform: uppercase; letter-spacing: 0.6px; }
+      .qr-image { width: 160px; height: 160px; border-radius: var(--r); border: 2px solid var(--border); background: #fff; object-fit: contain; }
+
+      /* ── CAMERA ── */
+      .camera { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 18px; }
+      .video-group, .preview-group { display: flex; flex-direction: column; gap: 6px; }
+      .video-group strong, .preview-group strong {
+        font-size: 11px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted);
+      }
+      #video {
+        width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+        border-radius: var(--r); border: 1.5px solid var(--border); background: #0F1C2E;
+      }
+      #canvas { display: none !important; }
+      #preview {
+        width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+        border-radius: var(--r); border: 1.5px solid var(--border); background: var(--surface);
+      }
+
+      /* ── BUTTON GRID ── */
+      .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 18px 18px; }
+      .buttons #captureBtn { grid-column: 1 / -1; }
+      .buttons #loadBtn    { grid-column: 1 / -1; }
+
+      /* ── SUMMARY ── */
+      .summary {
+        margin: 8px 16px 10px; padding: 8px 12px; border-radius: var(--r);
+        background: var(--brand-light); border: 1px solid rgba(37,99,168,0.15);
+        color: var(--brand); font-size: 13px; font-weight: 500;
+      }
+      #adminPhotoSummary { margin: 0 18px 10px; }
+
+      /* ── GALLERY ── */
+      .gallery { margin: 16px; }
+      .gallery h2 { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+
+      /* ── PHOTO GRID ── */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 10px;
+        margin-top: 10px;
       }
-
-      #qrLabel {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--brand);
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
+      .photo-card {
+        display: flex; flex-direction: column;
+        border-radius: var(--r); overflow: hidden;
+        border: 1px solid var(--border); background: var(--card);
+        box-shadow: var(--sh); transition: transform 0.15s, box-shadow 0.15s;
       }
-
-      .qr-image {
-        width: 140px;
-        height: 140px;
-        border-radius: var(--radius);
-        border: 2px solid var(--border);
-        background: #fff;
+      .photo-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
+      .photo-card img {
+        width: 100% !important;
+        aspect-ratio: 4/3 !important;
+        object-fit: cover !important;
+        display: block !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: #111;
       }
-
-      /* ── SIGNUP PANEL ── */
-      .panel {
-        margin-top: 18px;
-        padding: 16px;
-        background: var(--surface);
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
+      .photo-meta {
+        font-size: 11px; color: var(--muted);
+        padding: 6px 9px; background: var(--surface);
+        line-height: 1.5; font-family: var(--mono);
       }
 
       /* ── ADMIN ── */
-      .admin {
-        padding-bottom: 20px;
-      }
+      .admin h2 { font-size: 18px; font-weight: 600; padding: 16px 18px 0; margin-bottom: 14px; }
+      .admin > .field { padding: 0 18px; margin-bottom: 12px; }
+      .admin > .panel { margin: 0 18px 14px; }
+      #refreshAdmin { margin: 0 18px 14px; display: block; width: calc(100% - 36px); }
+      #folderList, #adminPhotoList, #signupCodeList { margin: 0 18px 14px; }
+      #generatedSignupCode { background: var(--success-bg); color: var(--success); border-color: rgba(26,122,74,0.2); }
+      #generatedSignupCode:empty { display: none; }
+      .admin > h3 { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; padding: 0 18px; margin-bottom: 6px; }
 
-      .admin h2 {
-        font-size: 18px;
-        padding: 18px 20px 0;
-        margin-bottom: 16px;
-      }
-
-      .admin > .field,
-      .admin > .panel,
-      .admin > button {
-        margin: 0 20px 14px;
-      }
-
-      .admin > button { display: block; }
-
-      #folderList, #adminPhotoList, #signupCodeList {
-        margin: 0 20px 14px;
-        padding: 0;
-      }
-
-      /* ── ACTIVITY LOG ── */
+      /* ── LOG ── */
       .log {
-        font-family: var(--mono);
-        font-size: 12px;
-        color: var(--text-secondary);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 12px 14px;
-        white-space: pre-wrap;
-        word-break: break-all;
-        max-height: 200px;
-        overflow-y: auto;
-        margin: 0 20px;
-        line-height: 1.7;
-      }
-
-      #activityLog { margin-top: 8px; }
-
-      /* ── GALLERY ── */
-      .gallery h2 {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        padding: 20px 4px 12px;
-      }
-
-      .summary {
-        font-size: 13px;
-        color: var(--text-secondary);
-        padding: 8px 4px;
-        font-weight: 500;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 10px;
-        padding: 4px;
-      }
-
-      /* ── ADMIN SUMMARY ── */
-      #adminPhotoSummary {
-        margin: 0 20px 12px;
-        padding: 10px 14px;
-        background: var(--brand-light);
-        border-radius: var(--radius);
-        font-size: 13px;
-        color: var(--brand);
-        font-weight: 500;
-        border: 1px solid rgba(37,99,168,0.15);
+        font-family: var(--mono); font-size: 11px; color: var(--text2);
+        background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+        padding: 10px 13px; white-space: pre-wrap; word-break: break-all;
+        max-height: 180px; overflow-y: auto; margin: 0 18px 18px; line-height: 1.7;
       }
 
       /* ── UTILITY ── */
       .hidden { display: none !important; }
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-      #generatedSignupCode {
-        margin-top: 8px;
-        font-family: var(--mono);
-        font-size: 13px;
-        letter-spacing: 0.5px;
-        background: var(--success-bg);
-        color: var(--success);
-        border: 1px solid rgba(26,122,74,0.2);
-        border-radius: var(--radius);
-        padding: 8px 12px;
-      }
-
-      #generatedSignupCode:empty { display: none; }
-
-      #adminSearch { width: 100%; }
-
-      /* Scrollbar polish */
-      ::-webkit-scrollbar { width: 5px; height: 5px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
-
-      /* Mobile tweaks */
       @media (max-width: 420px) {
         .camera { grid-template-columns: 1fr; }
         .buttons { grid-template-columns: 1fr; }
-        .buttons #captureBtn { grid-column: auto; }
+        .buttons #captureBtn, .buttons #loadBtn { grid-column: auto; }
       }
     </style>
   </head>
@@ -611,8 +319,8 @@
       <section class="auth" id="authSection">
         <h2>Login</h2>
         <p class="muted-note"></p>
-        <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Enter username" /></label></div>
-        <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Enter password" /></label></div>
+        <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Username" /></label></div>
+        <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Password" /></label></div>
         <button id="loginBtn">Login</button>
         <button id="showSignupBtn" type="button">Sign Up With Code</button>
         <p id="loginStatus" class="status"></p>
@@ -630,7 +338,7 @@
           <span id="userLabel"></span>
           <button id="logoutBtn">Logout</button>
         </div>
-        <label class="field" for="nameInput"><span>Driver / Owner Name</span><input id="nameInput" list="nameList" placeholder="e.g., Yukta" aria-label="Driver or owner name" required /><datalist id="nameList"></datalist></label>
+        <label class="field" for="nameInput"><span>Driver/Owner Name</span><input id="nameInput" list="nameList" placeholder="e.g., Yukta" aria-label="Driver or owner name" required /><datalist id="nameList"></datalist></label>
         <label class="field" for="siteInput"><span>Site Name</span><input id="siteInput" placeholder="e.g., Depot A" aria-label="Site name" required /></label>
         <label class="field" for="vehicleSize"><span>Vehicle Size</span>
           <select id="vehicleSize" aria-label="Vehicle size" required>
@@ -673,20 +381,20 @@
           <button id="adminLogoutBtn">Logout</button>
         </div>
         <h2>Admin Dashboard</h2>
-        <div class="panel" style="margin: 0 20px 14px;">
+        <div class="panel">
           <h3>Generate Employee Signup Code</h3>
           <button id="generateSignupCodeBtn">Generate Code</button>
           <p id="generatedSignupCode" class="status"></p>
           <div class="panel" id="signupCodeList"></div>
         </div>
-        <div class="field" style="padding: 0 20px;"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
-        <div class="field" style="padding: 0 20px;"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
-        <button id="refreshAdmin" style="margin: 0 20px 14px; display: block;">Refresh folders</button>
+        <div class="field"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
+        <div class="field"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
+        <button id="refreshAdmin">Refresh folders</button>
 
-        <div class="panel" id="folderList" style="margin: 0 20px 14px;"></div>
+        <div class="panel" id="folderList"></div>
         <div id="adminPhotoSummary" class="summary"></div>
-        <div class="panel" id="adminPhotoList" style="margin: 0 20px 14px;"></div>
-        <h3 style="padding: 0 20px; margin-bottom: 8px;">Activity Log</h3>
+        <div class="panel" id="adminPhotoList"></div>
+        <h3>Activity log</h3>
         <pre id="activityLog" class="log"></pre>
       </section>
 
