@@ -20,13 +20,23 @@ const SECRET = process.env.JWT_SECRET || "change_this_secret_for_production";
 const NODE_ENV = process.env.NODE_ENV || "development";
 const IS_PRODUCTION = NODE_ENV === "production";
 
-const LOCAL_MODE = process.env.LOCAL_MODE === "1";
-const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || "";
-const USE_OAUTH = process.env.USE_OAUTH === "1";
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
-const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
-const DATABASE_URL = process.env.DATABASE_URL || "";
+function cleanEnv(value) {
+  if (value === undefined || value === null) return "";
+  // Trim whitespace and remove surrounding single/double quotes
+  let v = String(value).trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
+const LOCAL_MODE = cleanEnv(process.env.LOCAL_MODE) === "1";
+const DRIVE_ROOT_FOLDER_ID = cleanEnv(process.env.DRIVE_ROOT_FOLDER_ID);
+const USE_OAUTH = cleanEnv(process.env.USE_OAUTH) === "1";
+const GOOGLE_CLIENT_ID = cleanEnv(process.env.GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_SECRET = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
+const GOOGLE_REFRESH_TOKEN = cleanEnv(process.env.GOOGLE_REFRESH_TOKEN);
+const DATABASE_URL = cleanEnv(process.env.DATABASE_URL);
 const USE_DB = !LOCAL_MODE && Boolean(DATABASE_URL);
 const PAYMENT_QR_IMAGE_URL = process.env.PAYMENT_QR_IMAGE_URL || "/payment-qr.jpeg";
 const PAYMENT_QR_LABEL = process.env.PAYMENT_QR_LABEL || "Online Payment QR";
@@ -355,6 +365,13 @@ if (!LOCAL_MODE) {
       if (!oauthClient || !GOOGLE_REFRESH_TOKEN) {
         throw new Error("Missing OAuth client credentials");
       }
+      // Debug info (non-sensitive): log presence and lengths only
+      try {
+        console.log("OAuth client present:", !!oauthClient.clientId);
+        console.log("Refresh token length:", GOOGLE_REFRESH_TOKEN ? GOOGLE_REFRESH_TOKEN.length : 0);
+      } catch (e) {
+        // ignore
+      }
       const oauth = new google.auth.OAuth2(oauthClient.clientId, oauthClient.clientSecret);
       oauth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
       auth = oauth;
@@ -398,6 +415,20 @@ app.get("/health", (_req, res) => {
     ok: true,
     mode: USE_LOCAL ? "LOCAL_MODE" : "DRIVE_MODE",
     storage: USE_DB ? "POSTGRES" : "JSON"
+  });
+});
+
+// Temporary debug endpoint to inspect OAuth env presence on deployed hosts.
+// Enable by setting DEBUG_OAUTH=1 in the environment (remove after troubleshooting).
+app.get("/debug-oauth", (_req, res) => {
+  const debugEnabled = cleanEnv(process.env.DEBUG_OAUTH) === "1";
+  if (!debugEnabled) return res.status(404).json({ error: "Not found" });
+  const oauthClient = loadOAuthClientConfig();
+  return res.json({
+    useOauth: USE_OAUTH,
+    oauthClientPresent: !!(oauthClient && oauthClient.clientId),
+    refreshTokenLength: GOOGLE_REFRESH_TOKEN ? GOOGLE_REFRESH_TOKEN.length : 0,
+    driveRootFolderIdPresent: !!DRIVE_ROOT_FOLDER_ID
   });
 });
 
