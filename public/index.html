@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="style.css" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      /* Ensure photo-card images always show — overrides style.css global img rule */
+      .photo-card img { display: block !important; width: 100% !important; aspect-ratio: 4/3 !important; object-fit: cover !important; border-radius: 0 !important; }
 
       :root {
         --brand: #1A3C5E;
@@ -379,6 +381,42 @@
         border-radius: var(--radius);
         border: 1.5px solid var(--border);
         background: var(--surface);
+      }
+
+      /* ── PHOTO GRID CARDS (rendered by app.js) ── */
+      .photo-card {
+        display: flex;
+        flex-direction: column;
+        border-radius: var(--radius);
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: var(--card);
+        box-shadow: var(--shadow);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .photo-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      .photo-card img {
+        width: 100%;
+        aspect-ratio: 4/3;
+        object-fit: cover;
+        display: block;
+        border-radius: 0;
+        border: none;
+        background: #111;
+      }
+
+      .photo-meta {
+        font-size: 11px;
+        color: var(--text-muted);
+        padding: 7px 10px;
+        background: var(--surface);
+        line-height: 1.5;
+        font-family: var(--mono);
       }
 
       /* ── BUTTON ROW ── */
