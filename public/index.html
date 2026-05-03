@@ -4,20 +4,577 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sagar Transport</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --brand: #1A3C5E;
+        --brand-mid: #2563A8;
+        --brand-light: #EBF3FC;
+        --accent: #E05A2B;
+        --accent-light: #FDF0EB;
+        --surface: #F7F8FA;
+        --card: #FFFFFF;
+        --border: #DDE3EC;
+        --border-strong: #B8C4D6;
+        --text-primary: #0F1C2E;
+        --text-secondary: #4A5668;
+        --text-muted: #8A95A6;
+        --success: #1A7A4A;
+        --success-bg: #EAF7F0;
+        --danger: #C0392B;
+        --danger-bg: #FCEAEA;
+        --warn: #9A5F00;
+        --warn-bg: #FFF5E0;
+        --radius: 10px;
+        --radius-lg: 16px;
+        --shadow: 0 2px 12px rgba(26,60,94,0.08);
+        --shadow-lg: 0 8px 32px rgba(26,60,94,0.13);
+        --font: 'Sora', sans-serif;
+        --mono: 'JetBrains Mono', monospace;
+        --transition: 0.18s ease;
+      }
+
+      body {
+        font-family: var(--font);
+        background: var(--surface);
+        color: var(--text-primary);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      /* ── APP SHELL ── */
+      .app {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 0 0 60px;
+      }
+
+      /* ── HEADER ── */
+      header {
+        background: var(--brand);
+        padding: 20px 24px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 16px rgba(26,60,94,0.2);
+      }
+
+      header::before {
+        content: '';
+        width: 36px;
+        height: 36px;
+        background: var(--accent);
+        border-radius: 8px;
+        display: block;
+        flex-shrink: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'/%3E%3C/svg%3E");
+        background-size: 22px;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+
+      header h1 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+        letter-spacing: -0.3px;
+      }
+
+      /* ── SECTIONS ── */
+      section {
+        margin: 20px 16px 0;
+        background: var(--card);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      section.gallery {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        overflow: visible;
+      }
+
+      section h2 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        padding: 20px 20px 0;
+        letter-spacing: -0.2px;
+      }
+
+      section h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 12px;
+      }
+
+      /* ── AUTH ── */
+      .auth {
+        padding: 24px 20px 20px;
+      }
+
+      .auth h2 {
+        font-size: 22px;
+        font-weight: 600;
+        padding: 0 0 6px;
+        color: var(--brand);
+      }
+
+      .muted-note {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
+
+      /* ── FIELDS ── */
+      .field {
+        margin-bottom: 14px;
+      }
+
+      .field label, label.field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      .field span, label.field > span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      input[type="text"],
+      input[type="password"],
+      input[type="date"],
+      input[list] {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        font-family: var(--font);
+        font-size: 14px;
+        color: var(--text-primary);
+        background: var(--surface);
+        outline: none;
+        transition: border-color var(--transition), box-shadow var(--transition);
+        -webkit-appearance: none;
+      }
+
+      input:focus {
+        border-color: var(--brand-mid);
+        box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
+        background: #fff;
+      }
+
+      select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        font-family: var(--font);
+        font-size: 14px;
+        color: var(--text-primary);
+        background: var(--surface);
+        outline: none;
+        cursor: pointer;
+        transition: border-color var(--transition);
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234A5668' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+      }
+
+      select:focus {
+        border-color: var(--brand-mid);
+        box-shadow: 0 0 0 3px rgba(37,99,168,0.12);
+      }
+
+      /* ── BUTTONS ── */
+      button {
+        font-family: var(--font);
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        border-radius: var(--radius);
+        padding: 11px 18px;
+        transition: all var(--transition);
+        line-height: 1;
+      }
+
+      /* Primary */
+      #loginBtn, #signupBtn, #saveBtn, #captureBtn, #generateSignupCodeBtn, #refreshAdmin {
+        background: var(--brand);
+        color: #fff;
+        width: 100%;
+        padding: 13px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: var(--radius);
+        letter-spacing: -0.1px;
+      }
+
+      #loginBtn:hover, #signupBtn:hover, #saveBtn:hover, #captureBtn:hover,
+      #generateSignupCodeBtn:hover, #refreshAdmin:hover {
+        background: var(--brand-mid);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(26,60,94,0.22);
+      }
+
+      #loginBtn:active, #signupBtn:active, #saveBtn:active, #captureBtn:active {
+        transform: translateY(0);
+      }
+
+      #saveBtn:disabled {
+        background: var(--border);
+        color: var(--text-muted);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      /* Secondary */
+      #showSignupBtn, #switchCameraBtn, #loadBtn {
+        background: var(--brand-light);
+        color: var(--brand);
+        border: 1.5px solid rgba(37,99,168,0.2);
+        width: 100%;
+        padding: 11px;
+        margin-top: 8px;
+      }
+
+      #showSignupBtn:hover, #switchCameraBtn:hover, #loadBtn:hover {
+        background: #D8E9F8;
+        border-color: var(--brand-mid);
+      }
+
+      /* Danger/clear */
+      #clearBtn {
+        background: var(--danger-bg);
+        color: var(--danger);
+        border: 1.5px solid rgba(192,57,43,0.2);
+        padding: 11px;
+      }
+
+      #clearBtn:hover { background: #F5D5D5; }
+      #clearBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      /* Logout */
+      #logoutBtn, #adminLogoutBtn {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1.5px solid var(--border);
+        font-size: 13px;
+        padding: 7px 14px;
+      }
+
+      #logoutBtn:hover, #adminLogoutBtn:hover {
+        background: var(--danger-bg);
+        color: var(--danger);
+        border-color: rgba(192,57,43,0.3);
+      }
+
+      /* ── TOP BAR ── */
+      .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px;
+        background: var(--brand-light);
+        border-bottom: 1px solid var(--border);
+      }
+
+      #userLabel, #adminLabel {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--brand);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #userLabel::before, #adminLabel::before {
+        content: '';
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--brand);
+        display: block;
+        flex-shrink: 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z'/%3E%3C/svg%3E");
+        background-size: 16px;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+
+      /* ── CONTROLS SECTION ── */
+      .controls {
+        padding: 0;
+      }
+
+      .controls > label.field,
+      .controls > .field {
+        padding: 0 20px;
+        margin-bottom: 14px;
+      }
+
+      .controls > label.field:first-of-type {
+        margin-top: 18px;
+      }
+
+      /* ── CAMERA ── */
+      .camera {
+        margin: 16px 20px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .video-group, .preview-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .video-group strong, .preview-group strong {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+      }
+
+      #video {
+        width: 100%;
+        aspect-ratio: 4/3;
+        object-fit: cover;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        background: #0F1C2E;
+      }
+
+      #canvas.hidden { display: none; }
+
+      #preview {
+        width: 100%;
+        aspect-ratio: 4/3;
+        object-fit: cover;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        background: var(--surface);
+      }
+
+      /* ── BUTTON ROW ── */
+      .buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 4px 20px 20px;
+      }
+
+      .buttons #captureBtn { grid-column: 1 / -1; }
+
+      /* ── STATUS ── */
+      #status, .status {
+        font-size: 13px;
+        padding: 10px 14px;
+        border-radius: var(--radius);
+        margin-top: 8px;
+        font-family: var(--mono);
+        background: var(--brand-light);
+        color: var(--brand);
+        border: 1px solid rgba(37,99,168,0.15);
+      }
+
+      #status { margin: 0 20px 16px; }
+      #loginStatus:empty, .status:empty { display: none; }
+
+      #loginStatus {
+        margin-top: 10px;
+        font-size: 13px;
+        font-family: var(--mono);
+        border-radius: var(--radius);
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-secondary);
+      }
+
+      /* ── QR PANEL ── */
+      .qr-panel {
+        margin: 0 20px 14px;
+        padding: 16px;
+        border-radius: var(--radius);
+        background: var(--brand-light);
+        border: 1px solid rgba(37,99,168,0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #qrLabel {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--brand);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+
+      .qr-image {
+        width: 140px;
+        height: 140px;
+        border-radius: var(--radius);
+        border: 2px solid var(--border);
+        background: #fff;
+      }
+
+      /* ── SIGNUP PANEL ── */
+      .panel {
+        margin-top: 18px;
+        padding: 16px;
+        background: var(--surface);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+      }
+
+      /* ── ADMIN ── */
+      .admin {
+        padding-bottom: 20px;
+      }
+
+      .admin h2 {
+        font-size: 18px;
+        padding: 18px 20px 0;
+        margin-bottom: 16px;
+      }
+
+      .admin > .field,
+      .admin > .panel,
+      .admin > button {
+        margin: 0 20px 14px;
+      }
+
+      .admin > button { display: block; }
+
+      #folderList, #adminPhotoList, #signupCodeList {
+        margin: 0 20px 14px;
+        padding: 0;
+      }
+
+      /* ── ACTIVITY LOG ── */
+      .log {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 200px;
+        overflow-y: auto;
+        margin: 0 20px;
+        line-height: 1.7;
+      }
+
+      #activityLog { margin-top: 8px; }
+
+      /* ── GALLERY ── */
+      .gallery h2 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        padding: 20px 4px 12px;
+      }
+
+      .summary {
+        font-size: 13px;
+        color: var(--text-secondary);
+        padding: 8px 4px;
+        font-weight: 500;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+        padding: 4px;
+      }
+
+      /* ── ADMIN SUMMARY ── */
+      #adminPhotoSummary {
+        margin: 0 20px 12px;
+        padding: 10px 14px;
+        background: var(--brand-light);
+        border-radius: var(--radius);
+        font-size: 13px;
+        color: var(--brand);
+        font-weight: 500;
+        border: 1px solid rgba(37,99,168,0.15);
+      }
+
+      /* ── UTILITY ── */
+      .hidden { display: none !important; }
+
+      #generatedSignupCode {
+        margin-top: 8px;
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        background: var(--success-bg);
+        color: var(--success);
+        border: 1px solid rgba(26,122,74,0.2);
+        border-radius: var(--radius);
+        padding: 8px 12px;
+      }
+
+      #generatedSignupCode:empty { display: none; }
+
+      #adminSearch { width: 100%; }
+
+      /* Scrollbar polish */
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+      /* Mobile tweaks */
+      @media (max-width: 420px) {
+        .camera { grid-template-columns: 1fr; }
+        .buttons { grid-template-columns: 1fr; }
+        .buttons #captureBtn { grid-column: auto; }
+      }
+    </style>
   </head>
   <body>
     <div class="app">
       <header>
         <h1>Sagar Transport</h1>
-       
       </header>
 
       <section class="auth" id="authSection">
         <h2>Login</h2>
-        <p class="muted-note">Employees can sign up only with a one-time admin code.</p>
-        <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Username" /></label></div>
-        <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Password" /></label></div>
+        <p class="muted-note"></p>
+        <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Enter username" /></label></div>
+        <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Enter password" /></label></div>
         <button id="loginBtn">Login</button>
         <button id="showSignupBtn" type="button">Sign Up With Code</button>
         <p id="loginStatus" class="status"></p>
@@ -35,7 +592,7 @@
           <span id="userLabel"></span>
           <button id="logoutBtn">Logout</button>
         </div>
-        <label class="field" for="nameInput"><span>Driver/Owner Name</span><input id="nameInput" list="nameList" placeholder="e.g., Yukta" aria-label="Driver or owner name" required /><datalist id="nameList"></datalist></label>
+        <label class="field" for="nameInput"><span>Driver / Owner Name</span><input id="nameInput" list="nameList" placeholder="e.g., Yukta" aria-label="Driver or owner name" required /><datalist id="nameList"></datalist></label>
         <label class="field" for="siteInput"><span>Site Name</span><input id="siteInput" placeholder="e.g., Depot A" aria-label="Site name" required /></label>
         <label class="field" for="vehicleSize"><span>Vehicle Size</span>
           <select id="vehicleSize" aria-label="Vehicle size" required>
@@ -78,20 +635,20 @@
           <button id="adminLogoutBtn">Logout</button>
         </div>
         <h2>Admin Dashboard</h2>
-        <div class="panel">
+        <div class="panel" style="margin: 0 20px 14px;">
           <h3>Generate Employee Signup Code</h3>
           <button id="generateSignupCodeBtn">Generate Code</button>
           <p id="generatedSignupCode" class="status"></p>
           <div class="panel" id="signupCodeList"></div>
         </div>
-        <div class="field"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
-        <div class="field"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
-        <button id="refreshAdmin">Refresh folders</button>
+        <div class="field" style="padding: 0 20px;"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
+        <div class="field" style="padding: 0 20px;"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
+        <button id="refreshAdmin" style="margin: 0 20px 14px; display: block;">Refresh folders</button>
 
-        <div class="panel" id="folderList"></div>
+        <div class="panel" id="folderList" style="margin: 0 20px 14px;"></div>
         <div id="adminPhotoSummary" class="summary"></div>
-        <div class="panel" id="adminPhotoList"></div>
-        <h3>Activity log</h3>
+        <div class="panel" id="adminPhotoList" style="margin: 0 20px 14px;"></div>
+        <h3 style="padding: 0 20px; margin-bottom: 8px;">Activity Log</h3>
         <pre id="activityLog" class="log"></pre>
       </section>
 
