@@ -15,11 +15,19 @@
 
       <section class="auth" id="authSection">
         <h2>Login</h2>
+        <p class="muted-note">Employees can sign up only with a one-time admin code.</p>
         <div class="field"><label>Username<input type="text" id="loginUsername" placeholder="Username" /></label></div>
         <div class="field"><label>Password<input type="password" id="loginPassword" placeholder="Password" /></label></div>
         <button id="loginBtn">Login</button>
-        <button id="signupBtn">Sign Up </button>
+        <button id="showSignupBtn" type="button">Sign Up With Code</button>
         <p id="loginStatus" class="status"></p>
+        <div class="panel hidden" id="signupPanel">
+          <h3>Employee Sign Up</h3>
+          <div class="field"><label>New username<input type="text" id="signupUsername" placeholder="Choose username" /></label></div>
+          <div class="field"><label>New password<input type="password" id="signupPassword" placeholder="Choose password" /></label></div>
+          <div class="field"><label>Signup code<input type="text" id="signupCode" placeholder="Enter admin code" /></label></div>
+          <button id="signupBtn">Create Account</button>
+        </div>
       </section>
 
       <section class="controls hidden" id="userSection" aria-live="polite">
@@ -35,6 +43,17 @@
             <option value="big">Big</option>
           </select>
         </label>
+        <label class="field" for="paymentMode"><span>Payment Mode</span>
+          <select id="paymentMode" aria-label="Payment mode" required>
+            <option value="offline">Offline</option>
+            <option value="online">Online</option>
+          </select>
+        </label>
+        <section class="qr-panel hidden" id="qrPanel">
+          <strong id="qrLabel">Online Payment QR</strong>
+          <img id="qrImage" alt="Payment QR code" class="qr-image hidden" />
+          <p id="qrHint" class="muted-note">Show this QR to the employee or customer for online payment.</p>
+        </section>
         <label class="field" for="photoDateFilter"><span>Filter by Date</span><input type="date" id="photoDateFilter" /></label>
 
         <div class="camera">
@@ -59,6 +78,12 @@
           <button id="adminLogoutBtn">Logout</button>
         </div>
         <h2>Admin Dashboard</h2>
+        <div class="panel">
+          <h3>Generate Employee Signup Code</h3>
+          <button id="generateSignupCodeBtn">Generate Code</button>
+          <p id="generatedSignupCode" class="status"></p>
+          <div class="panel" id="signupCodeList"></div>
+        </div>
         <div class="field"><label>Search user name<input id="adminSearch" placeholder="Search by name" /></label></div>
         <div class="field"><label>Filter by Date<input type="date" id="adminDateFilter" /></label></div>
         <button id="refreshAdmin">Refresh folders</button>

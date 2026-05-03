@@ -5,13 +5,24 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
         sync: false
       - key: DRIVE_ROOT_FOLDER_ID
         sync: false
+      - key: USE_OAUTH
+        value: "0"
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
         sync: false
       - key: JWT_SECRET
         sync: false

@@ -17,6 +17,8 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.JWT_SECRET || "change_this_secret_for_production";
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PRODUCTION = NODE_ENV === "production";
 
 const LOCAL_MODE = process.env.LOCAL_MODE === "1";
 const DRIVE_ROOT_FOLDER_ID = process.env.DRIVE_ROOT_FOLDER_ID || "";
@@ -26,12 +28,15 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || "";
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const USE_DB = !LOCAL_MODE && Boolean(DATABASE_URL);
+const PAYMENT_QR_IMAGE_URL = process.env.PAYMENT_QR_IMAGE_URL || "/payment-qr.jpeg";
+const PAYMENT_QR_LABEL = process.env.PAYMENT_QR_LABEL || "Online Payment QR";
 
 const dataDir = path.join(__dirname, "data");
 const localFiles = {
   users: path.join(dataDir, "users.json"),
   photos: path.join(dataDir, "photos.json"),
-  activity: path.join(dataDir, "activity.json")
+  activity: path.join(dataDir, "activity.json"),
+  signupCodes: path.join(dataDir, "signup-codes.json")
 };
 
 function fileExists(filePath) {
@@ -97,6 +102,15 @@ async function initDb() {
     );
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS signup_codes (
+      code TEXT PRIMARY KEY,
+      created_by TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      used_by TEXT,
+      used_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS photos (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
@@ -104,6 +118,7 @@ async function initDb() {
       filename TEXT NOT NULL,
       url TEXT NOT NULL,
       vehicle_size TEXT NOT NULL,
+      payment_mode TEXT NOT NULL DEFAULT 'offline',
       uploaded_by TEXT NOT NULL,
       timestamp TIMESTAMPTZ NOT NULL,
       drive_file_id TEXT,
@@ -119,10 +134,13 @@ async function initDb() {
       target_folder TEXT NOT NULL,
       filename TEXT NOT NULL,
       vehicle_size TEXT NOT NULL,
+      payment_mode TEXT NOT NULL DEFAULT 'offline',
       site_name TEXT NOT NULL
     );
   `);
   await pool.query("CREATE INDEX IF NOT EXISTS activity_timestamp_idx ON activity(timestamp DESC);");
+  await pool.query("ALTER TABLE photos ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'offline';");
+  await pool.query("ALTER TABLE activity ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'offline';");
 }
 
 async function importJsonToDbIfEmpty() {
@@ -143,13 +161,14 @@ async function importJsonToDbIfEmpty() {
     const photos = await readJson(localFiles.photos, []);
     for (const photo of photos) {
       await pool.query(
-        "INSERT INTO photos (name, site_name, filename, url, vehicle_size, uploaded_by, timestamp, drive_file_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8);",
+        "INSERT INTO photos (name, site_name, filename, url, vehicle_size, payment_mode, uploaded_by, timestamp, drive_file_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);",
         [
           photo.name,
           photo.siteName,
           photo.filename,
           photo.url,
           photo.vehicleSize,
+          photo.paymentMode || "offline",
           photo.uploadedBy,
           photo.timestamp ? new Date(photo.timestamp) : new Date(),
           photo.driveFileId || null
@@ -163,13 +182,14 @@ async function importJsonToDbIfEmpty() {
     const activity = await readJson(localFiles.activity, []);
     for (const entry of activity) {
       await pool.query(
-        "INSERT INTO activity (timestamp, username, target_folder, filename, vehicle_size, site_name) VALUES ($1,$2,$3,$4,$5,$6);",
+        "INSERT INTO activity (timestamp, username, target_folder, filename, vehicle_size, payment_mode, site_name) VALUES ($1,$2,$3,$4,$5,$6,$7);",
         [
           entry.timestamp ? new Date(entry.timestamp) : new Date(),
           entry.username,
           entry.targetFolder,
           entry.filename,
           entry.vehicleSize,
+          entry.paymentMode || "offline",
           entry.siteName
         ]
       );
@@ -177,9 +197,80 @@ async function importJsonToDbIfEmpty() {
   }
 }
 
+async function listSignupCodes() {
+  if (USE_DB) {
+    const result = await pool.query(
+      "SELECT code, created_by AS \"createdBy\", created_at AS \"createdAt\", used_by AS \"usedBy\", used_at AS \"usedAt\" FROM signup_codes ORDER BY created_at DESC;"
+    );
+    return result.rows.map((row) => ({
+      code: row.code,
+      createdBy: row.createdBy,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+      usedBy: row.usedBy || "",
+      usedAt: row.usedAt instanceof Date ? row.usedAt.toISOString() : row.usedAt || ""
+    }));
+  }
+  return readJson(localFiles.signupCodes, []);
+}
+
+async function addSignupCode(entry) {
+  if (USE_DB) {
+    await pool.query(
+      "INSERT INTO signup_codes (code, created_by, created_at, used_by, used_at) VALUES ($1,$2,$3,$4,$5);",
+      [entry.code, entry.createdBy, entry.createdAt, entry.usedBy || null, entry.usedAt || null]
+    );
+    return;
+  }
+  const codes = await listSignupCodes();
+  codes.unshift(entry);
+  await writeJson(localFiles.signupCodes, codes);
+}
+
+async function getSignupCode(code) {
+  if (USE_DB) {
+    const result = await pool.query(
+      "SELECT code, created_by AS \"createdBy\", created_at AS \"createdAt\", used_by AS \"usedBy\", used_at AS \"usedAt\" FROM signup_codes WHERE code = $1 LIMIT 1;",
+      [code]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      code: row.code,
+      createdBy: row.createdBy,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+      usedBy: row.usedBy || "",
+      usedAt: row.usedAt instanceof Date ? row.usedAt.toISOString() : row.usedAt || ""
+    };
+  }
+  const codes = await listSignupCodes();
+  return codes.find((entry) => entry.code === code) || null;
+}
+
+async function markSignupCodeUsed(code, username) {
+  const usedAt = new Date().toISOString();
+  if (USE_DB) {
+    await pool.query(
+      "UPDATE signup_codes SET used_by = $2, used_at = $3 WHERE code = $1;",
+      [code, username, usedAt]
+    );
+    return;
+  }
+  const codes = await listSignupCodes();
+  const next = codes.map((entry) => {
+    if (entry.code !== code) return entry;
+    return { ...entry, usedBy: username, usedAt };
+  });
+  await writeJson(localFiles.signupCodes, next);
+}
+
 // Initialize Google Drive (optional)
 let drive = null;
 let driveReady = false;
+
+function readJsonFile(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  return JSON.parse(raw);
+}
 
 function loadServiceAccount() {
   const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -188,16 +279,68 @@ function loadServiceAccount() {
   }
   const jsonPathEnv = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
   if (jsonPathEnv && fileExists(jsonPathEnv)) {
-    const raw = fs.readFileSync(jsonPathEnv, "utf8");
-    return JSON.parse(raw);
+    return readJsonFile(jsonPathEnv);
   }
   const defaultPath = path.join(__dirname, "google-service-account.json");
   if (fileExists(defaultPath)) {
-    const raw = fs.readFileSync(defaultPath, "utf8");
-    return JSON.parse(raw);
+    return readJsonFile(defaultPath);
   }
   return null;
 }
+
+function loadOAuthClientConfig() {
+  const clientId = GOOGLE_CLIENT_ID;
+  const clientSecret = GOOGLE_CLIENT_SECRET;
+  if (clientId && clientSecret) {
+    return { clientId, clientSecret };
+  }
+
+  const jsonEnv = process.env.GOOGLE_OAUTH_CLIENT_JSON;
+  if (jsonEnv) {
+    return parseOAuthClientJson(JSON.parse(jsonEnv));
+  }
+
+  const jsonPathEnv = process.env.GOOGLE_OAUTH_CLIENT_PATH;
+  if (jsonPathEnv && fileExists(jsonPathEnv)) {
+    return parseOAuthClientJson(readJsonFile(jsonPathEnv));
+  }
+
+  const defaultPath = path.join(__dirname, "google-oauth-client.json");
+  if (fileExists(defaultPath)) {
+    return parseOAuthClientJson(readJsonFile(defaultPath));
+  }
+
+  return null;
+}
+
+function parseOAuthClientJson(payload) {
+  const root = payload.installed || payload.web || payload;
+  if (!root || !root.client_id || !root.client_secret) {
+    return null;
+  }
+  return {
+    clientId: root.client_id,
+    clientSecret: root.client_secret
+  };
+}
+
+function assertProductionConfig() {
+  if (!IS_PRODUCTION) return;
+
+  if (SECRET === "change_this_secret_for_production") {
+    throw new Error("Missing JWT_SECRET");
+  }
+
+  if (!DATABASE_URL) {
+    throw new Error("Missing DATABASE_URL");
+  }
+
+  if (!DRIVE_ROOT_FOLDER_ID) {
+    throw new Error("Missing DRIVE_ROOT_FOLDER_ID");
+  }
+}
+
+assertProductionConfig();
 
 if (!LOCAL_MODE) {
   try {
@@ -206,9 +349,13 @@ if (!LOCAL_MODE) {
     }
     let auth = null;
     const serviceAccount = loadServiceAccount();
+    const oauthClient = loadOAuthClientConfig();
 
-    if (USE_OAUTH || (!serviceAccount && GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN)) {
-      const oauth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+    if (USE_OAUTH || (!serviceAccount && oauthClient && GOOGLE_REFRESH_TOKEN)) {
+      if (!oauthClient || !GOOGLE_REFRESH_TOKEN) {
+        throw new Error("Missing OAuth client credentials");
+      }
+      const oauth = new google.auth.OAuth2(oauthClient.clientId, oauthClient.clientSecret);
       oauth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
       auth = oauth;
       console.log("Drive initialized with OAuth. Root folder:", DRIVE_ROOT_FOLDER_ID);
@@ -227,6 +374,9 @@ if (!LOCAL_MODE) {
     drive = google.drive({ version: "v3", auth });
     driveReady = true;
   } catch (err) {
+    if (IS_PRODUCTION) {
+      throw err;
+    }
     console.error("Drive init failed; falling back to LOCAL_MODE.", err.message);
   }
 }
@@ -242,6 +392,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 app.set("trust proxy", 1);
+
+app.get("/health", (_req, res) => {
+  res.json({
+    ok: true,
+    mode: USE_LOCAL ? "LOCAL_MODE" : "DRIVE_MODE",
+    storage: USE_DB ? "POSTGRES" : "JSON"
+  });
+});
 
 if (USE_LOCAL) {
   app.use("/data", express.static(dataDir));
@@ -294,13 +452,14 @@ async function listNames() {
 async function listPhotosByName(name) {
   if (USE_DB) {
     const result = await pool.query(
-      "SELECT filename, url, vehicle_size AS \"vehicleSize\", site_name AS \"siteName\", drive_file_id AS \"driveFileId\" FROM photos WHERE name = $1 ORDER BY filename DESC;",
+      "SELECT filename, url, vehicle_size AS \"vehicleSize\", payment_mode AS \"paymentMode\", site_name AS \"siteName\", drive_file_id AS \"driveFileId\" FROM photos WHERE name = $1 ORDER BY filename DESC;",
       [name]
     );
     return result.rows.map((row) => ({
       filename: row.filename,
       url: row.url || (row.driveFileId ? `/api/photo/${row.driveFileId}` : ""),
       vehicleSize: row.vehicleSize || "",
+      paymentMode: row.paymentMode || "offline",
       siteName: row.siteName || ""
     }));
   }
@@ -313,6 +472,7 @@ async function listPhotosByName(name) {
         filename: p.filename,
         url,
         vehicleSize: p.vehicleSize || "",
+        paymentMode: p.paymentMode || "offline",
         siteName: p.siteName || ""
       });
     }
@@ -324,13 +484,14 @@ async function listPhotosByName(name) {
 async function savePhotoMetadata(entry) {
   if (USE_DB) {
     await pool.query(
-      "INSERT INTO photos (name, site_name, filename, url, vehicle_size, uploaded_by, timestamp, drive_file_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8);",
+      "INSERT INTO photos (name, site_name, filename, url, vehicle_size, payment_mode, uploaded_by, timestamp, drive_file_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);",
       [
         entry.name,
         entry.siteName,
         entry.filename,
         entry.url,
         entry.vehicleSize,
+        entry.paymentMode || "offline",
         entry.uploadedBy,
         entry.timestamp,
         entry.driveFileId || null
@@ -346,13 +507,14 @@ async function savePhotoMetadata(entry) {
 async function saveActivity(entry) {
   if (USE_DB) {
     await pool.query(
-      "INSERT INTO activity (timestamp, username, target_folder, filename, vehicle_size, site_name) VALUES ($1,$2,$3,$4,$5,$6);",
+      "INSERT INTO activity (timestamp, username, target_folder, filename, vehicle_size, payment_mode, site_name) VALUES ($1,$2,$3,$4,$5,$6,$7);",
       [
         entry.timestamp,
         entry.username,
         entry.targetFolder,
         entry.filename,
         entry.vehicleSize,
+        entry.paymentMode || "offline",
         entry.siteName
       ]
     );
@@ -366,7 +528,7 @@ async function saveActivity(entry) {
 async function listActivity() {
   if (USE_DB) {
     const result = await pool.query(
-      "SELECT timestamp, username, target_folder AS \"targetFolder\", filename, vehicle_size AS \"vehicleSize\", site_name AS \"siteName\" FROM activity ORDER BY timestamp DESC;"
+      "SELECT timestamp, username, target_folder AS \"targetFolder\", filename, vehicle_size AS \"vehicleSize\", payment_mode AS \"paymentMode\", site_name AS \"siteName\" FROM activity ORDER BY timestamp DESC;"
     );
     return result.rows.map((row) => ({
       timestamp: row.timestamp.toISOString(),
@@ -374,6 +536,7 @@ async function listActivity() {
       targetFolder: row.targetFolder,
       filename: row.filename,
       vehicleSize: row.vehicleSize || "",
+      paymentMode: row.paymentMode || "offline",
       siteName: row.siteName || ""
     }));
   }
@@ -387,6 +550,7 @@ async function listActivity() {
       targetFolder: entry.targetFolder,
       filename: entry.filename,
       vehicleSize: entry.vehicleSize || "",
+      paymentMode: entry.paymentMode || "offline",
       siteName: entry.siteName || ""
     }));
 }
@@ -453,6 +617,21 @@ function normalizeVehicleSize(input) {
   return "";
 }
 
+function normalizePaymentMode(input) {
+  const val = String(input || "").trim().toLowerCase();
+  if (val === "online" || val === "offline") return val;
+  return "";
+}
+
+function generateSignupCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 8; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
+
 function timestampForFilename(date = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
   const yyyy = date.getFullYear();
@@ -475,18 +654,57 @@ async function compressImageBuffer(buffer, vehicleSize) {
     .toBuffer();
 }
 
+app.get("/api/public-config", (_req, res) => {
+  res.json({
+    allowSelfSignup: true,
+    paymentQrImageUrl: PAYMENT_QR_IMAGE_URL,
+    paymentQrLabel: PAYMENT_QR_LABEL
+  });
+});
+
 app.post("/api/signup", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: "Missing credentials" });
+  const username = String(req.body.username || "").trim();
+  const password = String(req.body.password || "");
+  const signupCode = String(req.body.signupCode || "").trim().toUpperCase();
+  if (!username || !password || !signupCode) {
+    return res.status(400).json({ error: "Username, password and signup code are required" });
+  }
 
   const existing = await getUserByUsername(username);
   if (existing) return res.status(400).json({ error: "User already exists" });
 
+  const codeEntry = await getSignupCode(signupCode);
+  if (!codeEntry) return res.status(400).json({ error: "Invalid signup code" });
+  if (codeEntry.usedBy) return res.status(400).json({ error: "Signup code already used" });
+
   const passwordHash = bcrypt.hashSync(password, 8);
   const newUser = { id: username, username, passwordHash, role: "user" };
   await addUser(newUser);
+  await markSignupCodeUsed(signupCode, username);
 
   res.json({ ok: true });
+});
+
+app.get("/api/admin/signup-codes", authMiddleware, adminMiddleware, async (_req, res) => {
+  const codes = await listSignupCodes();
+  res.json({ codes });
+});
+
+app.post("/api/admin/signup-codes", authMiddleware, adminMiddleware, async (req, res) => {
+  let code = "";
+  do {
+    code = generateSignupCode();
+  } while (await getSignupCode(code));
+
+  const entry = {
+    code,
+    createdBy: req.user.username,
+    createdAt: new Date().toISOString(),
+    usedBy: "",
+    usedAt: ""
+  };
+  await addSignupCode(entry);
+  res.json({ ok: true, code: entry.code, createdAt: entry.createdAt });
 });
 
 app.post("/api/login", async (req, res) => {
@@ -582,6 +800,8 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
     if (!siteName) return res.status(400).json({ error: "Site name is required" });
     const vehicleSize = normalizeVehicleSize(req.body.vehicleSize);
     if (!vehicleSize) return res.status(400).json({ error: "Vehicle size is required" });
+    const paymentMode = normalizePaymentMode(req.body.paymentMode);
+    if (!paymentMode) return res.status(400).json({ error: "Payment mode is required" });
 
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "Photo is required" });
@@ -639,6 +859,7 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
       filename,
       url,
       vehicleSize,
+      paymentMode,
       uploadedBy: req.user.username,
       timestamp: now,
       driveFileId
@@ -650,6 +871,7 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
       targetFolder: name,
       filename,
       vehicleSize,
+      paymentMode,
       siteName
     });
 

@@ -5,7 +5,12 @@ const adminSection = document.getElementById("adminSection");
 const loginUsername = document.getElementById("loginUsername");
 const loginPassword = document.getElementById("loginPassword");
 const loginBtn = document.getElementById("loginBtn");
+const showSignupBtn = document.getElementById("showSignupBtn");
 const signupBtn = document.getElementById("signupBtn");
+const signupPanel = document.getElementById("signupPanel");
+const signupUsername = document.getElementById("signupUsername");
+const signupPassword = document.getElementById("signupPassword");
+const signupCode = document.getElementById("signupCode");
 const loginStatus = document.getElementById("loginStatus");
 
 const userLabel = document.getElementById("userLabel");
@@ -17,6 +22,10 @@ const nameInput = document.getElementById("nameInput");
 const nameList = document.getElementById("nameList");
 const siteInput = document.getElementById("siteInput");
 const vehicleSize = document.getElementById("vehicleSize");
+const paymentMode = document.getElementById("paymentMode");
+const qrPanel = document.getElementById("qrPanel");
+const qrImage = document.getElementById("qrImage");
+const qrLabel = document.getElementById("qrLabel");
 const statusEl = document.getElementById("status");
 const photoGrid = document.getElementById("photoGrid");
 const photoSummary = document.getElementById("photoSummary");
@@ -26,6 +35,9 @@ const adminPhotoList = document.getElementById("adminPhotoList");
 const adminSearch = document.getElementById("adminSearch");
 const refreshAdmin = document.getElementById("refreshAdmin");
 const activityLog = document.getElementById("activityLog");
+const generateSignupCodeBtn = document.getElementById("generateSignupCodeBtn");
+const generatedSignupCode = document.getElementById("generatedSignupCode");
+const signupCodeList = document.getElementById("signupCodeList");
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -42,6 +54,11 @@ let token = null;
 let currentUser = null;
 let currentPhotoData = [];
 let currentAdminPhotoData = [];
+let publicConfig = {
+  allowSelfSignup: false,
+  paymentQrImageUrl: "",
+  paymentQrLabel: "Online Payment QR"
+};
 
 function setStatus(msg, type = "info", retain = false) {
   statusEl.textContent = msg;
@@ -62,6 +79,10 @@ function showSection(role) {
   if (role === "admin") adminSection.classList.remove("hidden");
   else if (role === "user") userSection.classList.remove("hidden");
   else authSection.classList.remove("hidden");
+}
+
+function toggleSignupPanel() {
+  signupPanel.classList.toggle("hidden");
 }
 
 async function callApi(path, options = {}) {
@@ -122,25 +143,92 @@ async function doLogin() {
   }
 }
 
+function updateQrPanel() {
+  const isOnline = paymentMode.value === "online";
+  const hasQr = Boolean(publicConfig.paymentQrImageUrl);
+  qrPanel.classList.toggle("hidden", !(isOnline && hasQr));
+  qrLabel.textContent = publicConfig.paymentQrLabel || "Online Payment QR";
+  if (hasQr) {
+    qrImage.src = publicConfig.paymentQrImageUrl;
+    qrImage.classList.remove("hidden");
+  } else {
+    qrImage.removeAttribute("src");
+    qrImage.classList.add("hidden");
+  }
+}
+
 async function doSignup() {
-  const username = loginUsername.value.trim();
-  const password = loginPassword.value;
-  if (!username || !password) {
-    loginStatus.textContent = "Username and password are required.";
+  const username = signupUsername.value.trim();
+  const password = signupPassword.value;
+  const code = signupCode.value.trim().toUpperCase();
+  if (!username || !password || !code) {
+    loginStatus.textContent = "Username, password and signup code are required.";
     return;
   }
 
-  loginStatus.textContent = "Signing up...";
+  loginStatus.textContent = "Creating account...";
   try {
     await callApi("/api/signup", {
       method: "POST",
-      body: { username, password }
+      body: { username, password, signupCode: code }
     });
     loginStatus.textContent = "Signup successful. Logging in...";
+    loginUsername.value = username;
+    loginPassword.value = password;
+    signupPanel.classList.add("hidden");
+    signupUsername.value = "";
+    signupPassword.value = "";
+    signupCode.value = "";
     await doLogin();
   } catch (err) {
     loginStatus.textContent = err.message;
-    console.error("Signup error", err);
+  }
+}
+
+function renderSignupCodes(codes) {
+  signupCodeList.innerHTML = "";
+  if (!codes.length) {
+    signupCodeList.textContent = "No signup codes generated yet.";
+    return;
+  }
+  codes.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "panel-row";
+    const text = document.createElement("span");
+    const status = entry.usedBy ? `Used by ${entry.usedBy}` : "Unused";
+    text.textContent = `${entry.code} | ${status}`;
+    row.appendChild(text);
+    signupCodeList.appendChild(row);
+  });
+}
+
+async function fetchSignupCodes() {
+  try {
+    const data = await callApi("/api/admin/signup-codes");
+    renderSignupCodes(data.codes || []);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function generateSignupCode() {
+  generatedSignupCode.textContent = "Generating signup code...";
+  try {
+    const data = await callApi("/api/admin/signup-codes", { method: "POST" });
+    generatedSignupCode.textContent = `Share this code: ${data.code}`;
+    await fetchSignupCodes();
+  } catch (err) {
+    generatedSignupCode.textContent = err.message;
+  }
+}
+
+async function loadPublicConfig() {
+  try {
+    publicConfig = await callApi("/api/public-config");
+  } catch (err) {
+    console.warn("Failed to load public config", err);
+  } finally {
+    updateQrPanel();
   }
 }
 
@@ -253,6 +341,7 @@ saveBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   const siteName = siteInput.value.trim();
   const size = vehicleSize.value;
+  const mode = paymentMode.value;
   if (!name) {
     setStatus("Please enter a name.", "warn");
     return;
@@ -263,6 +352,10 @@ saveBtn.addEventListener("click", async () => {
   }
   if (!capturedBlob) {
     setStatus("Please capture a photo first.", "warn");
+    return;
+  }
+  if (!mode) {
+    setStatus("Please choose a payment mode.", "warn");
     return;
   }
 
@@ -279,6 +372,7 @@ saveBtn.addEventListener("click", async () => {
   form.append("name", name);
   form.append("siteName", siteName);
   form.append("vehicleSize", size);
+  form.append("paymentMode", mode);
   form.append("photo", uploadBlob, "capture.jpg");
 
   setStatus("Saving...", "info", true);
@@ -329,9 +423,12 @@ siteInput.addEventListener("input", () => {
 });
 
 loginBtn.addEventListener("click", doLogin);
+showSignupBtn.addEventListener("click", toggleSignupPanel);
 signupBtn.addEventListener("click", doSignup);
 logoutBtn.addEventListener("click", doLogout);
 adminLogoutBtn.addEventListener("click", doLogout);
+generateSignupCodeBtn.addEventListener("click", generateSignupCode);
+paymentMode.addEventListener("change", updateQrPanel);
 
 async function loadNames() {
   try {
@@ -388,8 +485,9 @@ function renderPhotoList(photos, targetList) {
     meta.className = "photo-meta";
     const ts = p.capturedAt || formatTimestampDisplay(p.filename);
     const sizeLabel = p.vehicleSize ? ` | ${p.vehicleSize.toUpperCase()}` : "";
+    const paymentLabel = p.paymentMode ? ` | ${p.paymentMode.toUpperCase()}` : "";
     const siteLabel = p.siteName ? ` | ${p.siteName}` : "";
-    meta.textContent = ts ? `Captured: ${ts}${sizeLabel}${siteLabel}` : `${p.filename}${sizeLabel}${siteLabel}`;
+    meta.textContent = ts ? `Captured: ${ts}${sizeLabel}${paymentLabel}${siteLabel}` : `${p.filename}${sizeLabel}${paymentLabel}${siteLabel}`;
 
     card.append(img, meta);
     targetList.appendChild(card);
@@ -490,8 +588,9 @@ async function fetchAdminData() {
 
     const activity = await callApi("/api/admin/activity");
     activityLog.textContent = activity.logs
-      .map((l) => `${l.timestamp} | ${l.username} | ${l.targetFolder} | ${l.filename} | ${l.vehicleSize || "N/A"} | ${l.siteName || "N/A"}`)
+      .map((l) => `${l.timestamp} | ${l.username} | ${l.targetFolder} | ${l.filename} | ${l.vehicleSize || "N/A"} | ${l.paymentMode || "offline"} | ${l.siteName || "N/A"}`)
       .join("\n");
+    await fetchSignupCodes();
   } catch (err) {
     console.error(err);
   }
@@ -558,4 +657,5 @@ adminDateFilter.addEventListener("change", () => {
   filterPhotosByDate(adminDateFilter.value, currentAdminPhotoData, adminPhotoList);
 });
 
+loadPublicConfig();
 showSection(null);
