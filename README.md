@@ -94,21 +94,49 @@ You still need:
 
 ## Render deployment
 
-`render.yaml` is included for Render.
+Deploy the branch:
+
+- `codex/drive-employee-flow`
+
+This project is configured for Google Drive via OAuth on Render.
 
 Set these environment variables in Render:
-- `NODE_ENV=production`
-- `JWT_SECRET`
-- `DATABASE_URL`
-- `DRIVE_ROOT_FOLDER_ID`
-- either `GOOGLE_SERVICE_ACCOUNT_JSON` or the OAuth variables
+
+```env
+NODE_ENV=production
+JWT_SECRET=replace_with_a_long_random_secret
+DATABASE_URL=replace_with_your_render_postgres_external_database_url
+DRIVE_ROOT_FOLDER_ID=1iRfZfmsHuWyXf-aNf_SHG0xyr-k3uI5o
+USE_OAUTH=1
+GOOGLE_CLIENT_ID=391510149716-1mut9chm6bq5ql38hikpi1ia180furfb.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=add_in_render_only
+GOOGLE_REFRESH_TOKEN=add_in_render_only
+PAYMENT_QR_LABEL=Online Payment QR
+```
+
+Do not set:
+
+- `LOCAL_MODE=1`
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
 
 Health check endpoint:
+
 - `/health`
 
+After deploy, open:
+
+- `https://your-render-app.onrender.com/health`
+
+Expected result:
+
+- `mode: DRIVE_MODE`
+- `storage: POSTGRES` when `DATABASE_URL` is configured
+
 Important:
-- Production now fails fast if required env vars are missing
-- This prevents silent fallback to local JSON storage on ephemeral hosting
+
+- Production fails fast if required env vars are missing
+- New uploads go to Google Drive
+- User, activity, and photo metadata should use Render Postgres
 
 ## Google Drive behavior
 
