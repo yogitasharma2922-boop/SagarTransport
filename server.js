@@ -22,7 +22,6 @@ const IS_PRODUCTION = NODE_ENV === "production";
 
 function cleanEnv(value) {
   if (value === undefined || value === null) return "";
-  // Trim whitespace and remove surrounding single/double quotes
   let v = String(value).trim();
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
     v = v.slice(1, -1).trim();
@@ -273,7 +272,7 @@ async function markSignupCodeUsed(code, username) {
   await writeJson(localFiles.signupCodes, next);
 }
 
-// Initialize Google Drive (optional)
+// Initialize Google Drive
 let drive = null;
 let driveReady = false;
 
@@ -286,13 +285,12 @@ function loadServiceAccount() {
   const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (jsonEnv) {
     const parsed = JSON.parse(jsonEnv);
-    // Fix corrupted private_key newlines from environment variable pasting
     if (parsed.private_key) {
       parsed.private_key = parsed.private_key
-        .replace(/\\n/g, '\n')
-        .replace(/\n\n/g, '\n');
+        .replace(/\\n/g, "\n")
+        .replace(/\n\n/g, "\n");
     }
-    console.log("Service account loaded. Key starts with:", 
+    console.log("Service account loaded. Key starts with:",
       parsed.private_key ? parsed.private_key.substring(0, 40) : "EMPTY");
     return parsed;
   }
@@ -313,22 +311,18 @@ function loadOAuthClientConfig() {
   if (clientId && clientSecret) {
     return { clientId, clientSecret };
   }
-
   const jsonEnv = process.env.GOOGLE_OAUTH_CLIENT_JSON;
   if (jsonEnv) {
     return parseOAuthClientJson(JSON.parse(jsonEnv));
   }
-
   const jsonPathEnv = process.env.GOOGLE_OAUTH_CLIENT_PATH;
   if (jsonPathEnv && fileExists(jsonPathEnv)) {
     return parseOAuthClientJson(readJsonFile(jsonPathEnv));
   }
-
   const defaultPath = path.join(__dirname, "google-oauth-client.json");
   if (fileExists(defaultPath)) {
     return parseOAuthClientJson(readJsonFile(defaultPath));
   }
-
   return null;
 }
 
@@ -345,15 +339,12 @@ function parseOAuthClientJson(payload) {
 
 function assertProductionConfig() {
   if (!IS_PRODUCTION) return;
-
   if (SECRET === "change_this_secret_for_production") {
     throw new Error("Missing JWT_SECRET");
   }
-
   if (!DATABASE_URL) {
     throw new Error("Missing DATABASE_URL");
   }
-
   if (!DRIVE_ROOT_FOLDER_ID) {
     throw new Error("Missing DRIVE_ROOT_FOLDER_ID");
   }
@@ -374,13 +365,8 @@ if (!LOCAL_MODE) {
       if (!oauthClient || !GOOGLE_REFRESH_TOKEN) {
         throw new Error("Missing OAuth client credentials");
       }
-      // Debug info (non-sensitive): log presence and lengths only
-      try {
-        console.log("OAuth client present:", !!oauthClient.clientId);
-        console.log("Refresh token length:", GOOGLE_REFRESH_TOKEN ? GOOGLE_REFRESH_TOKEN.length : 0);
-      } catch (e) {
-        // ignore
-      }
+      console.log("OAuth client present:", !!oauthClient.clientId);
+      console.log("Refresh token length:", GOOGLE_REFRESH_TOKEN ? GOOGLE_REFRESH_TOKEN.length : 0);
       const oauth = new google.auth.OAuth2(oauthClient.clientId, oauthClient.clientSecret);
       oauth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
       auth = oauth;
@@ -427,8 +413,6 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Temporary debug endpoint to inspect OAuth env presence on deployed hosts.
-// Enable by setting DEBUG_OAUTH=1 in the environment (remove after troubleshooting).
 app.get("/debug-oauth", (_req, res) => {
   const debugEnabled = cleanEnv(process.env.DEBUG_OAUTH) === "1";
   if (!debugEnabled) return res.status(404).json({ error: "Not found" });
@@ -497,7 +481,9 @@ async function listPhotosByName(name) {
     );
     return result.rows.map((row) => ({
       filename: row.filename,
-      url: row.url || (row.driveFileId ? `/api/photo/${row.driveFileId}` : ""),
+      // FIX: always use driveFileId proxy route if available
+      url: row.driveFileId ? `/api/photo/${row.driveFileId}` : row.url,
+      driveFileId: row.driveFileId || "",
       vehicleSize: row.vehicleSize || "",
       paymentMode: row.paymentMode || "offline",
       siteName: row.siteName || ""
@@ -507,10 +493,12 @@ async function listPhotosByName(name) {
   const all = await readJson(localFiles.photos, []);
   all.forEach((p) => {
     if (p.name === name) {
-      const url = p.url || (p.driveFileId ? `/api/photo/${p.driveFileId}` : "");
+      // FIX: always use driveFileId proxy route if available
+      const url = p.driveFileId ? `/api/photo/${p.driveFileId}` : p.url;
       photos.push({
         filename: p.filename,
         url,
+        driveFileId: p.driveFileId || "",
         vehicleSize: p.vehicleSize || "",
         paymentMode: p.paymentMode || "offline",
         siteName: p.siteName || ""
@@ -709,19 +697,15 @@ app.post("/api/signup", async (req, res) => {
   if (!username || !password || !signupCode) {
     return res.status(400).json({ error: "Username, password and signup code are required" });
   }
-
   const existing = await getUserByUsername(username);
   if (existing) return res.status(400).json({ error: "User already exists" });
-
   const codeEntry = await getSignupCode(signupCode);
   if (!codeEntry) return res.status(400).json({ error: "Invalid signup code" });
   if (codeEntry.usedBy) return res.status(400).json({ error: "Signup code already used" });
-
   const passwordHash = bcrypt.hashSync(password, 8);
   const newUser = { id: username, username, passwordHash, role: "user" };
   await addUser(newUser);
   await markSignupCodeUsed(signupCode, username);
-
   res.json({ ok: true });
 });
 
@@ -735,7 +719,6 @@ app.post("/api/admin/signup-codes", authMiddleware, adminMiddleware, async (req,
   do {
     code = generateSignupCode();
   } while (await getSignupCode(code));
-
   const entry = {
     code,
     createdBy: req.user.username,
@@ -750,13 +733,10 @@ app.post("/api/admin/signup-codes", authMiddleware, adminMiddleware, async (req,
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Missing credentials" });
-
   const user = await getUserByUsername(username);
   if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
   const valid = bcrypt.compareSync(password, user.passwordHash);
   if (!valid) return res.status(401).json({ error: "Invalid credentials" });
-
   const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET, { expiresIn: "12h" });
   res.json({ token, role: user.role, username: user.username });
 });
@@ -779,7 +759,6 @@ app.get("/api/photos", authMiddleware, async (req, res) => {
     const nameRaw = req.query.name || "";
     const name = sanitizeFolderName(nameRaw);
     if (!name) return res.json({ photos: [] });
-
     const photos = await listPhotosByName(name);
     res.json({ photos });
   } catch (err) {
@@ -824,8 +803,7 @@ async function ensureDriveFolder(folderName) {
       mimeType: "application/vnd.google-apps.folder",
       parents: [DRIVE_ROOT_FOLDER_ID]
     },
-    fields: "id"
-    ,
+    fields: "id",
     supportsAllDrives: true
   });
   return created.data.id;
@@ -842,7 +820,6 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
     if (!vehicleSize) return res.status(400).json({ error: "Vehicle size is required" });
     const paymentMode = normalizePaymentMode(req.body.paymentMode);
     if (!paymentMode) return res.status(400).json({ error: "Payment mode is required" });
-
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "Photo is required" });
     }
@@ -879,17 +856,8 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
         supportsAllDrives: true
       });
       driveFileId = created.data.id;
-      try {
-        await drive.permissions.create({
-          fileId: driveFileId,
-          requestBody: { role: "reader", type: "anyone" },
-          supportsAllDrives: true
-        });
-        url = `https://drive.google.com/uc?id=${driveFileId}`;
-      } catch (permErr) {
-        console.warn("Failed to set public permission, falling back to API route.", permErr.message || permErr);
-        url = `/api/photo/${driveFileId}`;
-      }
+      // Always use proxy route — direct Drive URLs don't work in <img> tags
+      url = `/api/photo/${driveFileId}`;
     }
 
     const now = new Date();
@@ -937,6 +905,7 @@ app.get("/api/photo/:id", authMiddleware, async (req, res) => {
     const name = meta.data.name || "photo";
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Disposition", `inline; filename="${name}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
     const driveRes = await drive.files.get(
       { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "stream" }
@@ -953,21 +922,17 @@ app.get("/api/photo/:id", authMiddleware, async (req, res) => {
 app.delete("/api/admin/photo", authMiddleware, adminMiddleware, async (req, res) => {
   const { name, filename } = req.body;
   if (!name || !filename) return res.status(400).json({ error: "Missing name/filename" });
-
   try {
     const driveFileId = await getPhotoDriveFileId(name, filename);
-
     if (USE_LOCAL) {
       const targetPath = path.join(dataDir, name, filename);
       if (fileExists(targetPath)) {
         await fs.promises.unlink(targetPath);
       }
     } else if (driveFileId) {
-      await drive.files.delete({ fileId: driveFileId });
+      await drive.files.delete({ fileId: driveFileId, supportsAllDrives: true });
     }
-
     await deletePhotoMetadata(name, filename);
-
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Delete failed" });
