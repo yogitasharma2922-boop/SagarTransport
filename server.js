@@ -285,7 +285,16 @@ function readJsonFile(filePath) {
 function loadServiceAccount() {
   const jsonEnv = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (jsonEnv) {
-    return JSON.parse(jsonEnv);
+    const parsed = JSON.parse(jsonEnv);
+    // Fix corrupted private_key newlines from environment variable pasting
+    if (parsed.private_key) {
+      parsed.private_key = parsed.private_key
+        .replace(/\\n/g, '\n')
+        .replace(/\n\n/g, '\n');
+    }
+    console.log("Service account loaded. Key starts with:", 
+      parsed.private_key ? parsed.private_key.substring(0, 40) : "EMPTY");
+    return parsed;
   }
   const jsonPathEnv = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
   if (jsonPathEnv && fileExists(jsonPathEnv)) {
