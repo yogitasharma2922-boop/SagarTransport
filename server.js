@@ -894,7 +894,7 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
   }
 });
 
-app.get("/api/photo/:id", authMiddleware, async (req, res) => {
+app.get("/api/photo/:id", async (req, res) => {
   try {
     if (USE_LOCAL) {
       return res.status(404).json({ error: "Not available in LOCAL_MODE" });
