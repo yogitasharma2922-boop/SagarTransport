@@ -480,14 +480,23 @@ function renderPhotoList(photos, targetList) {
     const img = document.createElement("img");
     img.src = p.url;
     img.alt = p.filename;
+    img.style.cursor = "pointer";
+    img.title = "Click to open in Google Drive";
+
+    img.addEventListener("click", () => {
+      const parts = p.url.split("/api/photo/");
+      const fileId = parts.length > 1 ? parts[1] : (p.driveFileId || "");
+      if (fileId) {
+        window.open(`https://drive.google.com/file/d/${fileId}/view`, "_blank");
+      }
+    });
 
     const meta = document.createElement("div");
     meta.className = "photo-meta";
     const ts = p.capturedAt || formatTimestampDisplay(p.filename);
     const sizeLabel = p.vehicleSize ? ` | ${p.vehicleSize.toUpperCase()}` : "";
-    const paymentLabel = p.paymentMode ? ` | ${p.paymentMode.toUpperCase()}` : "";
     const siteLabel = p.siteName ? ` | ${p.siteName}` : "";
-    meta.textContent = ts ? `Captured: ${ts}${sizeLabel}${paymentLabel}${siteLabel}` : `${p.filename}${sizeLabel}${paymentLabel}${siteLabel}`;
+    meta.textContent = ts ? `Captured: ${ts}${sizeLabel}${siteLabel}` : `${p.filename}${sizeLabel}${siteLabel}`;
 
     card.append(img, meta);
     targetList.appendChild(card);
@@ -659,34 +668,3 @@ adminDateFilter.addEventListener("change", () => {
 
 loadPublicConfig();
 showSection(null);
-function renderPhotoList(photos, targetList) {
-  targetList.innerHTML = "";
-  photos.forEach((p) => {
-    const card = document.createElement("div");
-    card.className = "photo-card";
-
-    const img = document.createElement("img");
-    img.src = p.url;
-    img.alt = p.filename;
-    img.style.cursor = "pointer";
-    img.title = "Click to open in Google Drive";
-
-    img.addEventListener("click", () => {
-      const parts = p.url.split("/api/photo/");
-      const fileId = parts.length > 1 ? parts[1] : (p.driveFileId || "");
-      if (fileId) {
-        window.open(`https://drive.google.com/file/d/${fileId}/view`, "_blank");
-      }
-    });
-
-    const meta = document.createElement("div");
-    meta.className = "photo-meta";
-    const ts = p.capturedAt || formatTimestampDisplay(p.filename);
-    const sizeLabel = p.vehicleSize ? ` | ${p.vehicleSize.toUpperCase()}` : "";
-    const siteLabel = p.siteName ? ` | ${p.siteName}` : "";
-    meta.textContent = ts ? `Captured: ${ts}${sizeLabel}${siteLabel}` : `${p.filename}${sizeLabel}${siteLabel}`;
-
-    card.append(img, meta);
-    targetList.appendChild(card);
-  });
-}

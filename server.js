@@ -910,6 +910,27 @@ app.get("/api/photo/:id", async (req, res) => {
       { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "stream" }
     );
+    driveRes.data.on("error", () => { res.status(500).end(); });
+    driveRes.data.pipe(res);
+  } catch (err) {
+    res.status(404).json({ error: "Photo not found" });
+  }
+});
+  try {
+    if (USE_LOCAL) {
+      return res.status(404).json({ error: "Not available in LOCAL_MODE" });
+    }
+    const fileId = req.params.id;
+    const meta = await drive.files.get({ fileId, fields: "mimeType,name", supportsAllDrives: true });
+    const mimeType = meta.data.mimeType || "application/octet-stream";
+    const name = meta.data.name || "photo";
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${name}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    const driveRes = await drive.files.get(
+      { fileId, alt: "media", supportsAllDrives: true },
+      { responseType: "stream" }
+    );
     driveRes.data.on("error", () => {
       res.status(500).end();
     });
