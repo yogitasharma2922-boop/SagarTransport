@@ -4,7 +4,9 @@
   "description": "Simple transport management photo capture app",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   },
   "engines": {
     "node": ">=18"
@@ -17,5 +19,8 @@
     "multer": "^1.4.5-lts.1",
     "pg": "^8.12.0",
     "sharp": "^0.33.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.90.0"
   }
 }

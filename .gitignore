@@ -16,3 +16,9 @@ oauth-token-result.json
 sagar qr.jpeg
 *.pem
 *.key
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
