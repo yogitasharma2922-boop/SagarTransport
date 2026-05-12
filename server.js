@@ -481,7 +481,6 @@ async function listPhotosByName(name) {
     );
     return result.rows.map((row) => ({
       filename: row.filename,
-      // FIX: always use driveFileId proxy route if available
       url: row.driveFileId ? `/api/photo/${row.driveFileId}` : row.url,
       driveFileId: row.driveFileId || "",
       vehicleSize: row.vehicleSize || "",
@@ -493,7 +492,6 @@ async function listPhotosByName(name) {
   const all = await readJson(localFiles.photos, []);
   all.forEach((p) => {
     if (p.name === name) {
-      // FIX: always use driveFileId proxy route if available
       const url = p.driveFileId ? `/api/photo/${p.driveFileId}` : p.url;
       photos.push({
         filename: p.filename,
@@ -856,7 +854,6 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
         supportsAllDrives: true
       });
       driveFileId = created.data.id;
-      // Always use proxy route — direct Drive URLs don't work in <img> tags
       url = `/api/photo/${driveFileId}`;
     }
 
@@ -895,27 +892,6 @@ app.post("/api/upload", authMiddleware, upload.single("photo"), async (req, res)
 });
 
 app.get("/api/photo/:id", async (req, res) => {
-  try {
-    if (USE_LOCAL) {
-      return res.status(404).json({ error: "Not available in LOCAL_MODE" });
-    }
-    const fileId = req.params.id;
-    const meta = await drive.files.get({ fileId, fields: "mimeType,name", supportsAllDrives: true });
-    const mimeType = meta.data.mimeType || "application/octet-stream";
-    const name = meta.data.name || "photo";
-    res.setHeader("Content-Type", mimeType);
-    res.setHeader("Content-Disposition", `inline; filename="${name}"`);
-    res.setHeader("Cache-Control", "private, max-age=3600");
-    const driveRes = await drive.files.get(
-      { fileId, alt: "media", supportsAllDrives: true },
-      { responseType: "stream" }
-    );
-    driveRes.data.on("error", () => { res.status(500).end(); });
-    driveRes.data.pipe(res);
-  } catch (err) {
-    res.status(404).json({ error: "Photo not found" });
-  }
-});
   try {
     if (USE_LOCAL) {
       return res.status(404).json({ error: "Not available in LOCAL_MODE" });
